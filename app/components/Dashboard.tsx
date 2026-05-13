@@ -2,7 +2,7 @@
 
 import React from "react";
 import { LineChart, Sparkline } from "./Charts";
-import { useWhoopContext, WhoopWorkout } from "../lib/useWhoop";
+import { useWhoopContext } from "../lib/useWhoop";
 
 function recoveryColor(score: number): string {
   if (score >= 67) return "var(--accent)";
@@ -22,39 +22,8 @@ function msToHM(ms: number): string {
   return `${h}h ${m}m`;
 }
 
-function minToHM(min: number): string {
-  const h = Math.floor(min / 60);
-  const m = Math.round(min % 60);
-  return h > 0 ? `${h}h ${m}m` : `${m}m`;
-}
-
 function dayLabel(iso: string): string {
   return new Date(iso).toLocaleDateString("en-US", { weekday: "short" });
-}
-
-function buildWorkoutDays(workouts: WhoopWorkout[]) {
-  const days = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-  const now = new Date();
-  const startOfWeek = new Date(now);
-  startOfWeek.setDate(now.getDate() - now.getDay());
-  startOfWeek.setHours(0, 0, 0, 0);
-
-  const buckets = days.map((d) => ({ d, z2: 0, z3: 0, z4: 0, l: "Rest" }));
-
-  for (const w of workouts) {
-    const wDate = new Date(w.start);
-    if (wDate < startOfWeek) continue;
-    const dayIdx = wDate.getDay();
-    if (w.score) {
-      const zd = w.score.zone_durations;
-      buckets[dayIdx].z2 = Math.round((zd.zone_two_milli + zd.zone_one_milli) / 60000);
-      buckets[dayIdx].z3 = Math.round(zd.zone_three_milli / 60000);
-      buckets[dayIdx].z4 = Math.round((zd.zone_four_milli + zd.zone_five_milli) / 60000);
-      buckets[dayIdx].l = w.sport_name.length > 8 ? w.sport_name.slice(0, 7) + "…" : w.sport_name;
-    }
-  }
-
-  return buckets;
 }
 
 function NotConnected({ onConnect }: { onConnect: () => void }) {
@@ -149,20 +118,6 @@ export default function Dashboard() {
 
   const recoveryLabels = scoredRecoveries.slice(0, 14).reverse().map((r) => dayLabel(r.created_at));
 
-  const trainingDays = buildWorkoutDays(whoop.workouts);
-  const weekWorkouts = whoop.workouts.filter((w) => {
-    const d = new Date(w.start);
-    const now = new Date();
-    const start = new Date(now);
-    start.setDate(now.getDate() - now.getDay());
-    start.setHours(0, 0, 0, 0);
-    return d >= start;
-  });
-  const totalWorkoutMin = weekWorkouts.reduce((sum, w) => {
-    const dur = (new Date(w.end).getTime() - new Date(w.start).getTime()) / 60000;
-    return sum + dur;
-  }, 0);
-
   const recoveryRows = [
     { l: "HRV", v: hrv != null ? `${hrv}ms` : "—", bar: hrv != null ? Math.min(hrv / 120, 1) : 0, hint: "rmssd" },
     { l: "RHR", v: rhr != null ? `${rhr}bpm` : "—", bar: rhr != null ? Math.max(1 - (rhr - 40) / 30, 0.2) : 0, hint: "live" },
@@ -190,20 +145,20 @@ export default function Dashboard() {
       </div>
 
       <div className="page-body">
-        {/* HERO — Recovery */}
+        {/* HERO — Resting Heart Rate */}
         <div className="hero">
           <div className="hero-grid">
             <div>
-              <div className="hero-eyebrow">Recovery score</div>
+              <div className="hero-eyebrow">Resting heart rate</div>
               <div className="hero-name">
                 {whoop.profile
                   ? `${whoop.profile.first_name} ${whoop.profile.last_name}`
                   : "—"}
               </div>
-              {recoveryScore != null ? (
+              {rhr != null ? (
                 <>
-                  <div className="hero-big" style={{ color: recoveryColor(recoveryScore) }}>
-                    {recoveryScore}
+                  <div className="hero-big">
+                    {rhr}
                     <span
                       style={{
                         fontFamily: "var(--mono)",
@@ -212,21 +167,18 @@ export default function Dashboard() {
                         letterSpacing: 0,
                       }}
                     >
-                      %
+                      bpm
                     </span>
-                    <sup style={{ fontSize: 14, color: "var(--muted)" }}>
-                      {recoveryLabel(recoveryScore).split(" · ")[0]}
-                    </sup>
                   </div>
                   <p className="hero-bio">
-                    {recoveryLabel(recoveryScore)}.{" "}
-                    {hrv != null && <>HRV at {hrv}ms, </>}
-                    {rhr != null && <>resting heart rate {rhr}bpm.</>}
+                    {rhr < 50 ? "Excellent" : rhr < 60 ? "Very good" : rhr < 70 ? "Good" : "Average"} resting heart rate.{" "}
+                    {hrv != null && <>HRV {hrv}ms. </>}
+                    {recoveryScore != null && <>{recoveryLabel(recoveryScore)}.</>}
                   </p>
                 </>
               ) : (
                 <p className="hero-bio" style={{ color: "var(--muted)" }}>
-                  No recovery data yet today.
+                  No heart rate data yet today.
                 </p>
               )}
             </div>
@@ -234,17 +186,17 @@ export default function Dashboard() {
             <div>
               <div className="hero-meter">
                 <div className="hero-meter-row">
-                  <div className="hero-meter-label">Day strain</div>
-                  <div className="hero-meter-val">
-                    {latestStrain ? latestStrain.strain.toFixed(1) : "—"}
-                    <span className="unit">/ 21</span>
+                  <div className="hero-meter-label">Recovery</div>
+                  <div className="hero-meter-val" style={{ color: recoveryScore != null ? recoveryColor(recoveryScore) : "var(--muted)" }}>
+                    {recoveryScore ?? "—"}
+                    <span className="unit">%</span>
                   </div>
                 </div>
                 <div className="hero-meter-row" style={{ marginTop: 18 }}>
-                  <div className="hero-meter-label">Calories</div>
+                  <div className="hero-meter-label">HRV</div>
                   <div className="hero-meter-val" style={{ color: "var(--accent)" }}>
-                    {latestStrain ? Math.round(latestStrain.kilojoule * 0.239) : "—"}
-                    <span className="unit">kcal</span>
+                    {hrv ?? "—"}
+                    <span className="unit">ms</span>
                   </div>
                 </div>
 
@@ -252,25 +204,25 @@ export default function Dashboard() {
                   <div
                     className="dna-fill"
                     style={{
-                      width: latestStrain ? `${(latestStrain.strain / 21) * 100}%` : "0%",
+                      width: rhr != null ? `${Math.max(100 - ((rhr - 35) / 45) * 100, 5)}%` : "0%",
                     }}
                   />
                 </div>
                 <div className="dna-marks">
-                  <span>0</span>
+                  <span>80</span>
                   <span style={{ color: "var(--accent)", fontWeight: 600 }}>
-                    {latestStrain ? latestStrain.strain.toFixed(1) : "—"} · TODAY
+                    {rhr ?? "—"} · YOU
                   </span>
-                  <span>21</span>
+                  <span>35</span>
                 </div>
 
                 <div className="aging-callout">
                   <div className="aging-callout-num">
-                    {latestStrain ? Math.round(latestStrain.average_heart_rate) : "—"}
+                    {latestStrain ? latestStrain.strain.toFixed(1) : "—"}
                   </div>
                   <div className="aging-callout-text">
-                    <strong>Avg heart rate</strong> today.
-                    {latestStrain && <> Max {Math.round(latestStrain.max_heart_rate)} bpm.</>}
+                    <strong>Day strain</strong> today.
+                    {latestStrain && <> {Math.round(latestStrain.kilojoule * 0.239)} kcal burned.</>}
                   </div>
                 </div>
               </div>
@@ -402,253 +354,6 @@ export default function Dashboard() {
           </>
         )}
 
-        {/* SECONDARY ROW — workouts + recovery vitals */}
-        <div className="divider-label">Activity · this week</div>
-        <div className="dash-grid">
-          <div className="card span-7">
-            <div className="card-head">
-              <div className="card-title">Training load · WHOOP</div>
-              <div className="card-meta">
-                {weekWorkouts.length} workout{weekWorkouts.length !== 1 ? "s" : ""} · {minToHM(totalWorkoutMin)}
-              </div>
-            </div>
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: "repeat(7, 1fr)",
-                gap: 8,
-                alignItems: "end",
-                height: 180,
-              }}
-            >
-              {trainingDays.map((day, i) => {
-                const total = day.z2 + day.z3 + day.z4;
-                const scale = 2;
-                return (
-                  <div
-                    key={i}
-                    style={{
-                      display: "flex",
-                      flexDirection: "column",
-                      alignItems: "center",
-                      gap: 6,
-                      height: "100%",
-                    }}
-                  >
-                    <div
-                      style={{
-                        flex: 1,
-                        display: "flex",
-                        flexDirection: "column",
-                        justifyContent: "flex-end",
-                        width: "100%",
-                        gap: 1,
-                      }}
-                    >
-                      {day.z4 > 0 && (
-                        <div
-                          style={{
-                            height: Math.min(day.z4 * scale, 60),
-                            background: "var(--danger)",
-                            borderRadius: "2px 2px 0 0",
-                          }}
-                        />
-                      )}
-                      {day.z3 > 0 && (
-                        <div
-                          style={{
-                            height: Math.min(day.z3 * scale, 60),
-                            background: "var(--warm)",
-                            borderRadius: day.z4 ? 0 : "2px 2px 0 0",
-                          }}
-                        />
-                      )}
-                      {day.z2 > 0 && (
-                        <div
-                          style={{
-                            height: Math.min(day.z2 * scale, 80),
-                            background: "var(--accent)",
-                            borderRadius: day.z3 || day.z4 ? 0 : "2px 2px 0 0",
-                          }}
-                        />
-                      )}
-                      {total === 0 && (
-                        <div
-                          style={{
-                            height: 4,
-                            background: "var(--hairline-2)",
-                            borderRadius: 2,
-                          }}
-                        />
-                      )}
-                    </div>
-                    <div
-                      style={{
-                        fontFamily: "var(--mono)",
-                        fontSize: 10,
-                        color: "var(--muted)",
-                        letterSpacing: "0.08em",
-                      }}
-                    >
-                      {day.d}
-                    </div>
-                    <div
-                      style={{
-                        fontSize: 11,
-                        color: total ? "var(--ink-2)" : "var(--faint)",
-                        fontStyle: "italic",
-                        fontFamily: "var(--serif)",
-                      }}
-                    >
-                      {day.l}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-            <div
-              style={{
-                display: "flex",
-                gap: 18,
-                marginTop: 18,
-                paddingTop: 16,
-                borderTop: "1px solid var(--hairline)",
-              }}
-            >
-              <div className="legend-item">
-                <span className="legend-swatch" style={{ background: "var(--accent)" }} />
-                Zone 1–2
-              </div>
-              <div className="legend-item">
-                <span className="legend-swatch" style={{ background: "var(--warm)" }} />
-                Zone 3
-              </div>
-              <div className="legend-item">
-                <span className="legend-swatch" style={{ background: "var(--danger)" }} />
-                Zone 4–5
-              </div>
-              <div
-                style={{
-                  marginLeft: "auto",
-                  fontFamily: "var(--mono)",
-                  fontSize: 10,
-                  color: "var(--muted)",
-                }}
-              >
-                Total · {minToHM(totalWorkoutMin)}
-              </div>
-            </div>
-          </div>
-
-          <div className="card span-5">
-            <div className="card-head">
-              <div className="card-title">Recovery · WHOOP</div>
-              <div className="card-meta">live</div>
-            </div>
-            <div
-              style={{
-                display: "flex",
-                alignItems: "baseline",
-                gap: 12,
-                marginBottom: 4,
-              }}
-            >
-              <div
-                style={{
-                  fontFamily: "var(--serif)",
-                  fontSize: 54,
-                  letterSpacing: "-0.03em",
-                  color: recoveryScore != null ? recoveryColor(recoveryScore) : "var(--muted)",
-                }}
-              >
-                {recoveryScore ?? "—"}
-                <span
-                  style={{
-                    fontFamily: "var(--mono)",
-                    fontSize: 12,
-                    color: "var(--muted)",
-                    marginLeft: 6,
-                    letterSpacing: 0,
-                  }}
-                >
-                  %
-                </span>
-              </div>
-              <div
-                style={{
-                  fontFamily: "var(--serif)",
-                  fontStyle: "italic",
-                  color: "var(--ink-2)",
-                  fontSize: 16,
-                }}
-              >
-                {recoveryScore != null ? recoveryLabel(recoveryScore) : "Pending"}
-              </div>
-            </div>
-            <div style={{ marginTop: 10 }}>
-              {recoveryRows.map((r, i) => (
-                <div
-                  key={i}
-                  style={{
-                    display: "grid",
-                    gridTemplateColumns: "100px 1fr 70px 80px",
-                    alignItems: "center",
-                    gap: 12,
-                    padding: "10px 0",
-                    borderBottom: i < recoveryRows.length - 1 ? "1px solid var(--hairline)" : "0",
-                  }}
-                >
-                  <div
-                    style={{
-                      fontFamily: "var(--mono)",
-                      fontSize: 10,
-                      letterSpacing: "0.14em",
-                      textTransform: "uppercase",
-                      color: "var(--muted)",
-                    }}
-                  >
-                    {r.l}
-                  </div>
-                  <div
-                    style={{
-                      height: 4,
-                      background: "var(--surface-2)",
-                      borderRadius: 100,
-                      overflow: "hidden",
-                    }}
-                  >
-                    <div
-                      style={{
-                        width: `${r.bar * 100}%`,
-                        height: "100%",
-                        background: "var(--accent)",
-                      }}
-                    />
-                  </div>
-                  <div
-                    style={{
-                      fontFamily: "var(--serif)",
-                      fontSize: 18,
-                      letterSpacing: "-0.02em",
-                    }}
-                  >
-                    {r.v}
-                  </div>
-                  <div
-                    style={{
-                      fontFamily: "var(--mono)",
-                      fontSize: 10,
-                      color: "var(--muted)",
-                      textAlign: "right",
-                    }}
-                  >
-                    {r.hint}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
       </div>
     </div>
   );
