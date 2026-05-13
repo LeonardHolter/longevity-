@@ -112,8 +112,6 @@ export default function Dashboard() {
   const scoredSleeps = whoop.sleeps.filter((s) => s.score_state === "SCORED" && s.score);
   const sleepTrend = scoredSleeps.slice(0, 14).reverse().map((s) => Math.round(s.score!.sleep_performance_percentage));
 
-  const scoredCycles = whoop.cycles.filter((c) => c.score_state === "SCORED" && c.score);
-  const latestStrain = scoredCycles[0]?.score;
 
   const recoveryLabels = scoredRecoveries.slice(0, 14).reverse().map((r) => dayLabel(r.created_at));
 
@@ -174,50 +172,6 @@ export default function Dashboard() {
               )}
             </div>
 
-            <div>
-              <div className="hero-meter">
-                <div className="hero-meter-row">
-                  <div className="hero-meter-label">Recovery</div>
-                  <div className="hero-meter-val" style={{ color: recoveryScore != null ? recoveryColor(recoveryScore) : "var(--muted)" }}>
-                    {recoveryScore ?? "—"}
-                    <span className="unit">%</span>
-                  </div>
-                </div>
-                <div className="hero-meter-row" style={{ marginTop: 18 }}>
-                  <div className="hero-meter-label">HRV</div>
-                  <div className="hero-meter-val" style={{ color: "var(--accent)" }}>
-                    {hrv ?? "—"}
-                    <span className="unit">ms</span>
-                  </div>
-                </div>
-
-                <div className="dna-track">
-                  <div
-                    className="dna-fill"
-                    style={{
-                      width: rhr != null ? `${Math.max(100 - ((rhr - 35) / 45) * 100, 5)}%` : "0%",
-                    }}
-                  />
-                </div>
-                <div className="dna-marks">
-                  <span>80</span>
-                  <span style={{ color: "var(--accent)", fontWeight: 600 }}>
-                    {rhr ?? "—"} · YOU
-                  </span>
-                  <span>35</span>
-                </div>
-
-                <div className="aging-callout">
-                  <div className="aging-callout-num">
-                    {latestStrain ? latestStrain.strain.toFixed(1) : "—"}
-                  </div>
-                  <div className="aging-callout-text">
-                    <strong>Day strain</strong> today.
-                    {latestStrain && <> {Math.round(latestStrain.kilojoule * 0.239)} kcal burned.</>}
-                  </div>
-                </div>
-              </div>
-            </div>
           </div>
         </div>
 
