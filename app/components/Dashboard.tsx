@@ -113,18 +113,9 @@ export default function Dashboard() {
   const sleepTrend = scoredSleeps.slice(0, 14).reverse().map((s) => Math.round(s.score!.sleep_performance_percentage));
 
   const scoredCycles = whoop.cycles.filter((c) => c.score_state === "SCORED" && c.score);
-  const strainTrend = scoredCycles.slice(0, 14).reverse().map((c) => parseFloat(c.score!.strain.toFixed(1)));
   const latestStrain = scoredCycles[0]?.score;
 
   const recoveryLabels = scoredRecoveries.slice(0, 14).reverse().map((r) => dayLabel(r.created_at));
-
-  const recoveryRows = [
-    { l: "HRV", v: hrv != null ? `${hrv}ms` : "—", bar: hrv != null ? Math.min(hrv / 120, 1) : 0, hint: "rmssd" },
-    { l: "RHR", v: rhr != null ? `${rhr}bpm` : "—", bar: rhr != null ? Math.max(1 - (rhr - 40) / 30, 0.2) : 0, hint: "live" },
-    { l: "Resp rate", v: respRate != null ? `${respRate.toFixed(1)}/m` : "—", bar: respRate != null ? Math.min(respRate / 20, 1) : 0, hint: "breaths" },
-    { l: "SpO₂", v: spo2 != null ? `${spo2}%` : "—", bar: spo2 != null ? spo2 / 100 : 0, hint: spo2 != null ? "oxygen" : "n/a" },
-    { l: "Skin temp", v: skinTemp != null ? `${skinTemp > 0 ? "+" : ""}${skinTemp.toFixed(1)}°C` : "—", bar: skinTemp != null ? 0.85 : 0, hint: skinTemp != null ? "delta" : "n/a" },
-  ];
 
   return (
     <div>
@@ -275,51 +266,51 @@ export default function Dashboard() {
 
           <div className="kpi span-4">
             <div className="kpi-head">
-              <div className="kpi-label">Resting heart rate</div>
+              <div className="kpi-label">Recovery</div>
               <div className="kpi-delta up">WHOOP</div>
             </div>
-            <div className="kpi-value">
-              {rhr ?? "—"}
-              <span className="unit">bpm</span>
+            <div className="kpi-value" style={{ color: recoveryScore != null ? recoveryColor(recoveryScore) : undefined }}>
+              {recoveryScore ?? "—"}
+              <span className="unit">%</span>
             </div>
             <div style={{ flex: 1 }}>
-              {rhrTrend.length >= 2 && (
-                <Sparkline values={rhrTrend} color="var(--danger)" height={48} />
+              {recoveryTrend.length >= 2 && (
+                <Sparkline values={recoveryTrend} color="var(--accent)" height={48} />
               )}
             </div>
             <div className="kpi-foot">
-              <span>{sleepConsistency != null ? `${sleepConsistency}% consistency` : "—"}</span>
+              <span>{recoveryScore != null ? recoveryLabel(recoveryScore).split(" · ")[1] : "—"}</span>
               <span>{respRate != null ? `${respRate.toFixed(1)} breaths/m` : "—"}</span>
             </div>
           </div>
         </div>
 
-        {/* RECOVERY TREND */}
-        {recoveryTrend.length >= 3 && (
+        {/* RHR TREND */}
+        {rhrTrend.length >= 3 && (
           <>
             <div className="divider-label">
-              Recovery trend · last {recoveryTrend.length} days
+              Resting heart rate · last {rhrTrend.length} days
             </div>
             <div className="card trend-card">
               <div className="trend-head">
                 <div>
                   <div className="trend-title">
-                    Recovery score, <em>day by day</em>
+                    Resting heart rate, <em>trending over time</em>
                   </div>
                   <div className="trend-sub">
-                    Your WHOOP recovery score over recent days. Higher is better — green
-                    means primed for strain, yellow means moderate, red means take it easy.
+                    Lower is generally better. A declining RHR over weeks signals improving
+                    cardiovascular fitness. Spikes can indicate stress, illness, or overtraining.
                   </div>
                 </div>
                 <div className="legend">
                   <div className="legend-item">
                     <span className="legend-swatch" style={{ background: "var(--accent)" }} />
-                    Recovery %
+                    RHR (bpm)
                   </div>
-                  {strainTrend.length >= 3 && (
+                  {hrvTrend.length >= 3 && (
                     <div className="legend-item">
                       <span className="legend-swatch" style={{ background: "var(--warm)" }} />
-                      Strain
+                      HRV (ms)
                     </div>
                   )}
                 </div>
@@ -328,21 +319,25 @@ export default function Dashboard() {
               <LineChart
                 width={920}
                 height={320}
-                yDomain={[0, 100]}
-                yUnit="%"
+                yDomain={[
+                  Math.min(...rhrTrend) - 5,
+                  Math.max(...rhrTrend, ...(hrvTrend.length >= 3 ? hrvTrend : [])) + 5,
+                ]}
+                yUnit="BPM"
                 xLabels={recoveryLabels}
                 series={[
                   {
-                    values: recoveryTrend,
+                    values: rhrTrend,
                     color: "var(--accent)",
                     width: 2.5,
                     fill: true,
                     dots: true,
                     dotR: 3,
+                    endLabel: true,
                   },
-                  ...(strainTrend.length >= 3
+                  ...(hrvTrend.length >= 3
                     ? [{
-                        values: strainTrend.map((s) => (s / 21) * 100),
+                        values: hrvTrend,
                         color: "var(--warm)",
                         width: 1.5,
                         dashed: true,
