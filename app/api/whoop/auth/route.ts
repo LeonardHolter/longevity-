@@ -1,7 +1,7 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { WHOOP_AUTH_URL, WHOOP_SCOPES, getWhoopConfig } from "@/app/lib/whoop";
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   const config = getWhoopConfig();
 
   if (!config.clientId) {
@@ -11,9 +11,12 @@ export async function GET() {
     );
   }
 
+  const origin = request.nextUrl.origin;
+  const redirectUri = `${origin}/api/whoop/callback`;
+
   const params = new URLSearchParams({
     client_id: config.clientId,
-    redirect_uri: config.redirectUri,
+    redirect_uri: redirectUri,
     response_type: "code",
     scope: WHOOP_SCOPES,
     state: crypto.randomUUID(),

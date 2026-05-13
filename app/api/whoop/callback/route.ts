@@ -13,6 +13,8 @@ export async function GET(request: NextRequest) {
   }
 
   const config = getWhoopConfig();
+  const origin = request.nextUrl.origin;
+  const redirectUri = `${origin}/api/whoop/callback`;
 
   const res = await fetch(WHOOP_TOKEN_URL, {
     method: "POST",
@@ -22,7 +24,7 @@ export async function GET(request: NextRequest) {
       code,
       client_id: config.clientId,
       client_secret: config.clientSecret,
-      redirect_uri: config.redirectUri,
+      redirect_uri: redirectUri,
     }),
   });
 
@@ -39,7 +41,7 @@ export async function GET(request: NextRequest) {
 
   cookieStore.set("whoop_access_token", data.access_token, {
     httpOnly: true,
-    secure: false,
+    secure: process.env.NODE_ENV === "production",
     sameSite: "lax",
     maxAge: data.expires_in || 3600,
     path: "/",
@@ -48,7 +50,7 @@ export async function GET(request: NextRequest) {
   if (data.refresh_token) {
     cookieStore.set("whoop_refresh_token", data.refresh_token, {
       httpOnly: true,
-      secure: false,
+      secure: process.env.NODE_ENV === "production",
       sameSite: "lax",
       maxAge: 30 * 24 * 3600,
       path: "/",
@@ -57,7 +59,7 @@ export async function GET(request: NextRequest) {
 
   cookieStore.set("whoop_connected", "true", {
     httpOnly: false,
-    secure: false,
+    secure: process.env.NODE_ENV === "production",
     sameSite: "lax",
     maxAge: 30 * 24 * 3600,
     path: "/",

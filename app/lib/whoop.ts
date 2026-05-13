@@ -50,7 +50,7 @@ export async function getAccessToken(): Promise<string | null> {
     const cookieStoreForSet = await cookies();
     cookieStoreForSet.set("whoop_access_token", data.access_token, {
       httpOnly: true,
-      secure: false,
+      secure: process.env.NODE_ENV === "production",
       sameSite: "lax",
       maxAge: data.expires_in || 3600,
       path: "/",
@@ -58,7 +58,7 @@ export async function getAccessToken(): Promise<string | null> {
     if (data.refresh_token) {
       cookieStoreForSet.set("whoop_refresh_token", data.refresh_token, {
         httpOnly: true,
-        secure: false,
+        secure: process.env.NODE_ENV === "production",
         sameSite: "lax",
         maxAge: 30 * 24 * 3600,
         path: "/",
