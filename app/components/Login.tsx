@@ -104,13 +104,6 @@ export default function Login({ whoop }: LoginProps) {
                 </span>
               </button>
             )}
-            <div className="connect-btn" style={{ opacity: 0.4 }}>
-              <div className="connect-glyph">S</div>
-              <span>Strava</span>
-              <span className="connect-status" style={{ color: "var(--faint)" }}>
-                SOON
-              </span>
-            </div>
           </div>
         </div>
       </div>

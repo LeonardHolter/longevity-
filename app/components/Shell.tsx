@@ -12,9 +12,10 @@ interface ShellProps {
 
 const items = [
   { id: "dashboard", label: "Healthspan", num: "01" },
-  { id: "strength", label: "Strength", num: "02" },
-  { id: "weight", label: "Weight", num: "03" },
-  { id: "food", label: "Food log", num: "04" },
+  { id: "compete", label: "Compete", num: "02" },
+  { id: "strength", label: "Strength", num: "03" },
+  { id: "weight", label: "Weight", num: "04" },
+  { id: "food", label: "Food log", num: "05" },
 ];
 
 export default function Shell({ route, setRoute, children }: ShellProps) {
@@ -88,20 +89,6 @@ export default function Shell({ route, setRoute, children }: ShellProps) {
               </span>
             </button>
           )}
-          <div className="nav-item" style={{ pointerEvents: "none" }}>
-            <span
-              style={{
-                width: 8,
-                height: 8,
-                borderRadius: "50%",
-                background: "var(--faint)",
-              }}
-            />
-            Strava
-            <span className="num" style={{ fontSize: 9 }}>
-              SOON
-            </span>
-          </div>
         </nav>
 
         <div className="account">
