@@ -147,9 +147,27 @@ export default function Compete() {
           <h1 className="page-title">
             <em>Compete</em>
           </h1>
-          <p className="page-sub">
-            Head-to-head WHOOP stats. Every metric counts. Lower RHR wins, higher everything else wins.
-          </p>
+          {me && opponent ? (
+            <p className="page-sub" style={{ fontSize: 18 }}>
+              Today&apos;s winner:{" "}
+              <strong style={{ color: "var(--accent)" }}>
+                {scores.a > scores.b
+                  ? me.name
+                  : scores.b > scores.a
+                    ? opponent.name
+                    : "Tied"}
+              </strong>
+              {scores.a !== scores.b && (
+                <span style={{ color: "var(--muted)" }}>
+                  {" "}— winning {Math.max(scores.a, scores.b)} of {METRICS.length} metrics
+                </span>
+              )}
+            </p>
+          ) : (
+            <p className="page-sub">
+              Head-to-head WHOOP stats. Every metric counts. Lower RHR wins, higher everything else wins.
+            </p>
+          )}
         </div>
         <div className="page-chips">
           <button
