@@ -18,15 +18,11 @@ export function getWhoopConfig() {
   return {
     clientId: process.env.WHOOP_CLIENT_ID || "",
     clientSecret: process.env.WHOOP_CLIENT_SECRET || "",
-    redirectUri: process.env.WHOOP_REDIRECT_URI || "http://localhost:3778/api/whoop/callback",
   };
 }
 
-export async function getAccessToken(): Promise<string | null> {
+async function refreshAccessToken(): Promise<string | null> {
   const cookieStore = await cookies();
-  const token = cookieStore.get("whoop_access_token")?.value;
-  if (token) return token;
-
   const refreshToken = cookieStore.get("whoop_refresh_token")?.value;
   if (!refreshToken) return null;
 
@@ -40,38 +36,57 @@ export async function getAccessToken(): Promise<string | null> {
         refresh_token: refreshToken,
         client_id: config.clientId,
         client_secret: config.clientSecret,
-        scope: "offline",
+        scope: WHOOP_SCOPES,
       }),
     });
 
     if (!res.ok) return null;
 
     const data = await res.json();
-    const cookieStoreForSet = await cookies();
-    cookieStoreForSet.set("whoop_access_token", data.access_token, {
+    const secure = process.env.NODE_ENV === "production";
+
+    cookieStore.set("whoop_access_token", data.access_token, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
+      secure,
       sameSite: "lax",
       maxAge: data.expires_in || 3600,
       path: "/",
     });
+
     if (data.refresh_token) {
-      cookieStoreForSet.set("whoop_refresh_token", data.refresh_token, {
+      cookieStore.set("whoop_refresh_token", data.refresh_token, {
         httpOnly: true,
-        secure: process.env.NODE_ENV === "production",
+        secure,
         sameSite: "lax",
-        maxAge: 30 * 24 * 3600,
+        maxAge: 365 * 24 * 3600,
         path: "/",
       });
     }
+
+    cookieStore.set("whoop_connected", "true", {
+      httpOnly: false,
+      secure,
+      sameSite: "lax",
+      maxAge: 365 * 24 * 3600,
+      path: "/",
+    });
+
     return data.access_token;
   } catch {
     return null;
   }
 }
 
+export async function getAccessToken(): Promise<string | null> {
+  const cookieStore = await cookies();
+  const token = cookieStore.get("whoop_access_token")?.value;
+  if (token) return token;
+
+  return refreshAccessToken();
+}
+
 export async function whoopFetch(path: string, params?: Record<string, string>) {
-  const token = await getAccessToken();
+  let token = await getAccessToken();
   if (!token) {
     return { error: "not_connected", data: null };
   }
@@ -81,14 +96,22 @@ export async function whoopFetch(path: string, params?: Record<string, string>) 
     Object.entries(params).forEach(([k, v]) => url.searchParams.set(k, v));
   }
 
-  const res = await fetch(url.toString(), {
+  let res = await fetch(url.toString(), {
     headers: { Authorization: `Bearer ${token}` },
     cache: "no-store",
   });
 
+  // If 401, try refreshing the token once and retry
   if (res.status === 401) {
-    return { error: "token_expired", data: null };
+    token = await refreshAccessToken();
+    if (!token) return { error: "not_connected", data: null };
+
+    res = await fetch(url.toString(), {
+      headers: { Authorization: `Bearer ${token}` },
+      cache: "no-store",
+    });
   }
+
   if (!res.ok) {
     return { error: `whoop_error_${res.status}`, data: null };
   }
