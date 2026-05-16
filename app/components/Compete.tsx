@@ -19,6 +19,9 @@ interface PlayerStats {
   avgRecovery: number | null;
   avgSleep: number | null;
   avgStrain: number | null;
+  zetamacLast: number | null;
+  zetamacBest: number | null;
+  zetamacAvgTime: number | null;
 }
 
 interface Metric {
@@ -36,6 +39,8 @@ const METRICS: Metric[] = [
   { key: "sleepScore", label: "Sleep Score", unit: "/ 100", avg: "avgSleep" },
   { key: "sleepEfficiency", label: "Sleep Efficiency", unit: "%" },
   { key: "strain", label: "Day Strain", unit: "/ 21", avg: "avgStrain" },
+  { key: "zetamacLast", label: "Zetamac (last)", unit: "pts" },
+  { key: "zetamacBest", label: "Zetamac (best)", unit: "pts" },
 ];
 
 function timeAgo(iso: string): string {

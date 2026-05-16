@@ -104,8 +104,17 @@ export default function Alzheimer() {
         setBestScore(score);
         localStorage.setItem("zetamac_best", score.toString());
       }
+      // Sync to server for compete
+      const avg = history.length
+        ? Math.round(history.reduce((s, h) => s + h.time, 0) / history.length)
+        : 0;
+      fetch("/api/stats/zetamac", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ score, avgTime: avg }),
+      }).catch(() => {});
     }
-  }, [state, score, bestScore]);
+  }, [state, score, bestScore, history]);
 
   const handleInput = (val: string) => {
     // Allow negative sign and digits

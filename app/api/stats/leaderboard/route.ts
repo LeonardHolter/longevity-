@@ -17,6 +17,9 @@ export interface PlayerStats {
   avgRecovery: number | null;
   avgSleep: number | null;
   avgStrain: number | null;
+  zetamacLast: number | null;
+  zetamacBest: number | null;
+  zetamacAvgTime: number | null;
 }
 
 export async function GET() {
@@ -26,10 +29,12 @@ export async function GET() {
   const players: PlayerStats[] = users.data
     .filter((u) => {
       const stats = u.publicMetadata?.whoopStats as Record<string, unknown> | undefined;
-      return stats && stats.updatedAt;
+      const zeta = u.publicMetadata?.zetamac as Record<string, unknown> | undefined;
+      return (stats && stats.updatedAt) || (zeta && zeta.lastPlayed);
     })
     .map((u) => {
-      const stats = u.publicMetadata.whoopStats as Record<string, unknown>;
+      const stats = (u.publicMetadata.whoopStats as Record<string, unknown>) || {};
+      const zeta = (u.publicMetadata.zetamac as Record<string, unknown>) || {};
       return {
         userId: u.id,
         name: (stats.name as string) || `${u.firstName ?? ""} ${u.lastName ?? ""}`.trim() || "User",
@@ -46,6 +51,9 @@ export async function GET() {
         avgRecovery: (stats.avgRecovery as number) ?? null,
         avgSleep: (stats.avgSleep as number) ?? null,
         avgStrain: (stats.avgStrain as number) ?? null,
+        zetamacLast: (zeta.lastScore as number) ?? null,
+        zetamacBest: (zeta.bestScore as number) ?? null,
+        zetamacAvgTime: (zeta.avgTime as number) ?? null,
       };
     });
 

@@ -13,7 +13,7 @@ import Alzheimer from "./components/Alzheimer";
 import { useWhoop, WhoopProvider } from "./lib/useWhoop";
 
 function AuthenticatedApp() {
-  const [route, setRoute] = useState("dashboard");
+  const [route, setRoute] = useState("compete");
   const whoop = useWhoop();
 
   return (
