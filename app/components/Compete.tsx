@@ -33,14 +33,10 @@ interface Metric {
 }
 
 const METRICS: Metric[] = [
-  { key: "rhr", label: "Resting Heart Rate", unit: "bpm", lowerBetter: true, avg: "avgRhr" },
-  { key: "hrv", label: "HRV", unit: "ms", avg: "avgHrv" },
-  { key: "recovery", label: "Recovery", unit: "%", avg: "avgRecovery" },
   { key: "sleepScore", label: "Sleep Score", unit: "/ 100", avg: "avgSleep" },
-  { key: "sleepEfficiency", label: "Sleep Efficiency", unit: "%" },
-  { key: "strain", label: "Day Strain", unit: "/ 21", avg: "avgStrain" },
-  { key: "zetamacLast", label: "Zetamac (last)", unit: "pts" },
-  { key: "zetamacBest", label: "Zetamac (best)", unit: "pts" },
+  { key: "hrv", label: "HRV", unit: "ms", avg: "avgHrv" },
+  { key: "rhr", label: "Resting Heart Rate", unit: "bpm", lowerBetter: true, avg: "avgRhr" },
+  { key: "zetamacBest", label: "Zetamac Best", unit: "pts" },
 ];
 
 function timeAgo(iso: string): string {
