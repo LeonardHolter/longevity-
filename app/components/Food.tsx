@@ -2,20 +2,186 @@
 
 import React, { useState, useRef, useCallback } from "react";
 
-interface MealCardProps {
-  slotId: string;
-  kind: string;
-  sub: string;
-  time: string;
-  defaultNote: string;
-  status: "done" | "pending";
-  suggestedTags: string[];
+interface MealItem {
+  name: string;
+  measurement: string;
 }
 
-function MealCard({ kind, sub, time, defaultNote, status, suggestedTags }: MealCardProps) {
-  const [note, setNote] = useState(defaultNote || "");
-  const [tags] = useState(suggestedTags || []);
+interface Meal {
+  kind: string;
+  summary: string;
+  kcal: string;
+  protein: string;
+  items: MealItem[];
+  prepNote?: string;
+}
+
+const MEALS: Meal[] = [
+  {
+    kind: "Breakfast",
+    summary: "Eggs + smoothie",
+    kcal: "~1,150",
+    protein: "80 g",
+    items: [
+      { name: "Eggs, scrambled", measurement: "5 eggs" },
+      { name: "Grovbrød", measurement: "3 slices" },
+      { name: "Peanut butter on the bread", measurement: "2 tbsp" },
+      { name: "Whey scoop", measurement: "1 scoop" },
+      { name: "Banana", measurement: "1" },
+      { name: "Milk into the smoothie", measurement: "3 dl" },
+    ],
+  },
+  {
+    kind: "Lunch",
+    summary: "Batch-cooked kjøttdeig + ris",
+    kcal: "~750",
+    protein: "55 g",
+    prepNote: "Sunday prep — makes 2 portions",
+    items: [
+      { name: "Kjøttdeig (10% fat)", measurement: "1 pack (400–500 g)" },
+      { name: "Tacokrydder", measurement: "1 packet" },
+      { name: "Rice, uncooked", measurement: "2 dl" },
+      { name: "Paprika", measurement: "2" },
+      { name: "Onion", measurement: "1" },
+      { name: "Tomato", measurement: "1" },
+      { name: "Olive oil for cooking", measurement: "1 tbsp" },
+    ],
+  },
+];
+
+function MealPlanCard({ meal }: { meal: Meal }) {
+  const [checkedItems, setCheckedItems] = useState<boolean[]>(
+    new Array(meal.items.length).fill(false)
+  );
+
+  const toggle = (idx: number) => {
+    const next = [...checkedItems];
+    next[idx] = !next[idx];
+    setCheckedItems(next);
+  };
+
+  const done = checkedItems.filter(Boolean).length;
+  const total = meal.items.length;
+
+  return (
+    <div className="card" style={{ padding: 0, overflow: "hidden" }}>
+      <div style={{
+        padding: "24px 28px 16px",
+        borderBottom: "1px solid var(--hairline)",
+      }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
+          <div>
+            <div style={{
+              fontFamily: "var(--mono)",
+              fontSize: 10,
+              letterSpacing: "0.14em",
+              color: "var(--muted)",
+              marginBottom: 6,
+            }}>
+              {meal.kind.toUpperCase()}
+            </div>
+            <div style={{ fontFamily: "var(--serif)", fontSize: 24 }}>
+              {meal.summary}
+            </div>
+          </div>
+          <div style={{ textAlign: "right" }}>
+            <div style={{ fontFamily: "var(--serif)", fontSize: 22, color: "var(--accent)" }}>
+              {meal.kcal}
+              <span style={{ fontFamily: "var(--mono)", fontSize: 11, color: "var(--muted)", marginLeft: 4 }}>kcal</span>
+            </div>
+            <div style={{ fontFamily: "var(--mono)", fontSize: 11, color: "var(--muted)", marginTop: 2 }}>
+              {meal.protein} protein
+            </div>
+          </div>
+        </div>
+        {meal.prepNote && (
+          <div style={{
+            fontFamily: "var(--mono)",
+            fontSize: 11,
+            color: "var(--muted)",
+            fontStyle: "italic",
+            marginTop: 8,
+          }}>
+            {meal.prepNote}
+          </div>
+        )}
+      </div>
+
+      <div>
+        {meal.items.map((item, i) => (
+          <div
+            key={i}
+            onClick={() => toggle(i)}
+            style={{
+              display: "grid",
+              gridTemplateColumns: "32px 1fr auto",
+              alignItems: "center",
+              padding: "14px 28px",
+              borderBottom: i < meal.items.length - 1 ? "1px solid var(--hairline)" : "none",
+              cursor: "pointer",
+              opacity: checkedItems[i] ? 0.5 : 1,
+              transition: "opacity 0.15s",
+            }}
+          >
+            <div style={{
+              width: 20,
+              height: 20,
+              borderRadius: 4,
+              border: checkedItems[i] ? "none" : "1.5px solid var(--faint)",
+              background: checkedItems[i] ? "var(--accent)" : "transparent",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              fontSize: 12,
+              color: "var(--bg)",
+              transition: "all 0.15s",
+            }}>
+              {checkedItems[i] && "✓"}
+            </div>
+            <div style={{
+              fontFamily: "var(--serif)",
+              fontSize: 15,
+              textDecoration: checkedItems[i] ? "line-through" : "none",
+            }}>
+              {item.name}
+            </div>
+            <div style={{
+              fontFamily: "var(--mono)",
+              fontSize: 12,
+              color: "var(--muted)",
+            }}>
+              {item.measurement}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <div style={{
+        padding: "14px 28px",
+        borderTop: "1px solid var(--hairline)",
+        display: "flex",
+        justifyContent: "space-between",
+        alignItems: "center",
+      }}>
+        <div style={{ fontFamily: "var(--mono)", fontSize: 10, color: "var(--muted)" }}>
+          {done} / {total} items
+        </div>
+        <div style={{
+          fontFamily: "var(--mono)",
+          fontSize: 10,
+          letterSpacing: "0.1em",
+          color: done === total ? "var(--accent)" : "var(--muted)",
+        }}>
+          {done === total ? "COMPLETE" : "IN PROGRESS"}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function MealPhotoCard({ kind }: { kind: string }) {
   const [photoUrl, setPhotoUrl] = useState<string | null>(null);
+  const [note, setNote] = useState("");
   const fileRef = useRef<HTMLInputElement>(null);
   const [dragOver, setDragOver] = useState(false);
 
@@ -26,18 +192,17 @@ function MealCard({ kind, sub, time, defaultNote, status, suggestedTags }: MealC
     reader.readAsDataURL(file);
   }, []);
 
-  const placeholder =
-    kind === "Breakfast"
-      ? "Oats, blueberries, walnuts, kefir…"
-      : kind === "Dinner"
-      ? "Describe the meal — what, how much, with whom…"
-      : "Cottage cheese, rye crispbread, honey…";
-
   return (
-    <div className="meal-card">
+    <div className="card" style={{ padding: 0, overflow: "hidden" }}>
       <div
-        className="meal-photo-wrap"
         style={{
+          height: 180,
+          background: "var(--surface-2)",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          cursor: "pointer",
+          position: "relative",
           outline: dragOver ? "2px solid var(--accent)" : undefined,
           outlineOffset: dragOver ? -2 : undefined,
         }}
@@ -51,12 +216,13 @@ function MealCard({ kind, sub, time, defaultNote, status, suggestedTags }: MealC
           if (f) handleFile(f);
         }}
       >
-        <span className="meal-time-pill">{time}</span>
         {photoUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={photoUrl} alt={kind} />
+          <img src={photoUrl} alt={kind} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
         ) : (
-          <span>Drop {kind.toLowerCase()} photo</span>
+          <span style={{ fontFamily: "var(--mono)", fontSize: 11, color: "var(--muted)" }}>
+            Drop {kind.toLowerCase()} photo
+          </span>
         )}
         <input
           ref={fileRef}
@@ -70,383 +236,90 @@ function MealCard({ kind, sub, time, defaultNote, status, suggestedTags }: MealC
           }}
         />
       </div>
-      <div className="meal-body">
-        <div className="meal-kind">
-          <span className="sub">{sub}</span>
-          {kind}
-        </div>
+      <div style={{ padding: "16px 24px" }}>
         <textarea
-          className="meal-input"
-          placeholder={placeholder}
+          style={{
+            width: "100%",
+            border: "none",
+            background: "transparent",
+            fontFamily: "var(--serif)",
+            fontSize: 14,
+            color: "var(--ink)",
+            resize: "none",
+            outline: "none",
+          }}
+          placeholder={`Notes about ${kind.toLowerCase()}...`}
           value={note}
           onChange={(e) => setNote(e.target.value)}
-          rows={3}
+          rows={2}
         />
-        <div className="meal-foot">
-          <div className="meal-tags">
-            {tags.map((t, i) => (
-              <span key={i} className="meal-tag">{t}</span>
-            ))}
-          </div>
-          <div className={`meal-status${status === "done" ? " done" : ""}`}>
-            {status === "done" ? "Logged" : "Pending"}
-          </div>
-        </div>
       </div>
     </div>
   );
 }
 
 export default function Food() {
-  const [selectedOffset, setSelectedOffset] = useState(0);
-
-  const days: Date[] = [];
-  for (let i = 13; i >= 0; i--) {
-    const d = new Date();
-    d.setDate(d.getDate() - i);
-    days.push(d);
-  }
-  const selected = days[days.length - 1 - selectedOffset];
-  const dateKey = selected.toISOString().slice(0, 10);
-  const isToday = selectedOffset === 0;
-
-  const completeness: Record<string, number> = {};
-  const mockComplete = [3, 3, 3, 2, 3, 3, 3, 3, 3, 2, 3, 3, 3, 3];
-  days.forEach((d, i) => {
-    const offsetFromToday = days.length - 1 - i;
-    completeness[d.toISOString().slice(0, 10)] =
-      offsetFromToday === 0 ? 1 : mockComplete[i] || 3;
-  });
-
-  const weeklyKcal = 14210;
-  const targetKcal = 16800;
-  const streak = 47;
-
-  const weekDays = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
-  const breakfastScores = [88, 92, 84, 90, 86, 78, 90];
-  const dinnerScores = [70, 65, 80, 72, 60, 55, 82];
-  const lunchScores = [75, 80, 70, 72, 65, 70, 78];
-
-  const patterns = [
-    { l: "Whole-food breakfasts", v: "7 / 7", tone: "good" },
-    { l: "Fish ≥ 2× per week", v: "3 × so far", tone: "good" },
-    { l: "Alcohol units", v: "4 u", tone: "neutral" },
-    { l: "Refined sugar events", v: "2 / target ≤ 3", tone: "good" },
-    { l: "Last meal before 21:00", v: "5 / 7", tone: "warn" },
-  ];
+  const totalKcal = "~1,900";
+  const totalProtein = "135 g";
 
   return (
     <div>
       <div className="page-head">
         <div>
           <div className="page-eyebrow">
-            Nutrition log · breakfast · dinner · lunch
+            Nutrition · breakfast · lunch
           </div>
           <h1 className="page-title">
             What you <em>fed</em> the system
           </h1>
           <p className="page-sub">
-            Capture the first and last meal of the day with a photo — the
-            dinner card is freeform. The protocol cares less about macros and
-            more about consistency and what&apos;s actually on the plate.
+            Two meals a day. {totalKcal} kcal, {totalProtein} protein. Simple, repeatable, no decisions.
           </p>
-        </div>
-        <div className="page-chips">
-          <span className="chip live">{streak}-day streak</span>
-          <span className="chip">
-            {weeklyKcal.toLocaleString()} / {targetKcal.toLocaleString()} kcal
-            · wk
-          </span>
         </div>
       </div>
 
       <div className="page-body">
-        <div className="food-day-strip">
-          {days.map((d, i) => {
-            const offset = days.length - 1 - i;
-            const isSelected = offset === selectedOffset;
-            const filled = completeness[d.toISOString().slice(0, 10)] || 0;
-            return (
-              <button
-                key={i}
-                className={`day-pill${isSelected ? " today" : ""}`}
-                onClick={() => setSelectedOffset(offset)}
-              >
-                <div className="day-pill-day">
-                  {d.toLocaleDateString("en-US", { weekday: "short" })}
-                </div>
-                <div className="day-pill-num">{d.getDate()}</div>
-                <div className="day-pill-dots">
-                  {[0, 1, 2].map((k) => (
-                    <span
-                      key={k}
-                      className={`dot${k < filled ? " filled" : ""}`}
-                    />
-                  ))}
-                </div>
-              </button>
-            );
-          })}
-        </div>
-
-        <h2 className="section-h">
-          {isToday ? (
-            <span>
-              Today,{" "}
-              <em>
-                {selected.toLocaleDateString("en-US", { weekday: "long" })}
-              </em>
-            </span>
-          ) : (
-            selected.toLocaleDateString("en-US", {
-              weekday: "long",
-              month: "long",
-              day: "numeric",
-            })
-          )}
-        </h2>
-
-        <div className="meal-grid">
-          <MealCard
-            slotId="meal-breakfast"
-            kind="Breakfast"
-            sub="07 · Morgen"
-            time="07:24"
-            defaultNote={
-              isToday
-                ? "Steel-cut oats, frozen blueberries, walnut crumble, full-fat kefir. Black coffee."
-                : ""
-            }
-            status={isToday ? "done" : "done"}
-            suggestedTags={
-              isToday
-                ? ["Whole grain", "Berries", "Fermented"]
-                : ["Whole grain", "Berries"]
-            }
-          />
-          <MealCard
-            slotId="meal-dinner"
-            kind="Dinner"
-            sub="19 · Middag"
-            time="19:10"
-            defaultNote={
-              isToday
-                ? ""
-                : "Pan-seared cod with brown butter, roasted carrots & dill, boiled new potatoes. Glass of red."
-            }
-            status={isToday ? "pending" : "done"}
-            suggestedTags={
-              isToday ? [] : ["Fish", "Root veg", "Alcohol · 1u"]
-            }
-          />
-          <MealCard
-            slotId="meal-lunch"
-            kind="Lunch"
-            sub="22 · Late night"
-            time="22:05"
-            defaultNote={
-              isToday
-                ? ""
-                : "Cottage cheese, rye crispbread, raw honey, handful of almonds."
-            }
-            status={isToday ? "pending" : "done"}
-            suggestedTags={isToday ? [] : ["High protein", "Pre-sleep"]}
-          />
-        </div>
-
-        <div className="divider-label">
-          This week · pattern recognition
-        </div>
-        <div className="dash-grid">
-          <div className="card span-8">
-            <div className="card-head">
-              <div className="card-title">
-                Meal composition · last 7 days
-              </div>
-              <div className="card-meta">Tagged from photos &amp; notes</div>
-            </div>
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: "repeat(7, 1fr)",
-                gap: 14,
-              }}
-            >
-              {weekDays.map((d, i) => (
-                <div
-                  key={i}
-                  style={{
-                    display: "flex",
-                    flexDirection: "column",
-                    alignItems: "center",
-                    gap: 8,
-                  }}
-                >
-                  <div
-                    style={{
-                      fontFamily: "var(--mono)",
-                      fontSize: 10,
-                      color: "var(--muted)",
-                      letterSpacing: "0.1em",
-                    }}
-                  >
-                    {d.toUpperCase()}
-                  </div>
-                  <div
-                    style={{
-                      display: "flex",
-                      flexDirection: "column",
-                      gap: 4,
-                      width: "100%",
-                    }}
-                  >
-                    <div
-                      title={`Breakfast ${breakfastScores[i]}`}
-                      style={{
-                        height: 28,
-                        background: "var(--accent-soft)",
-                        borderRadius: 4,
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        fontFamily: "var(--mono)",
-                        fontSize: 10,
-                        color: "var(--accent)",
-                      }}
-                    >
-                      {breakfastScores[i]}
-                    </div>
-                    <div
-                      title={`Dinner ${dinnerScores[i]}`}
-                      style={{
-                        height: 28,
-                        background: "var(--warm-soft)",
-                        borderRadius: 4,
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        fontFamily: "var(--mono)",
-                        fontSize: 10,
-                        color: "oklch(0.45 0.10 75)",
-                      }}
-                    >
-                      {dinnerScores[i]}
-                    </div>
-                    <div
-                      title={`Lunch ${lunchScores[i]}`}
-                      style={{
-                        height: 28,
-                        background: "var(--surface-2)",
-                        borderRadius: 4,
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        fontFamily: "var(--mono)",
-                        fontSize: 10,
-                        color: "var(--ink-2)",
-                      }}
-                    >
-                      {lunchScores[i]}
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-            <div
-              style={{
-                display: "flex",
-                gap: 18,
-                marginTop: 18,
-                paddingTop: 16,
-                borderTop: "1px solid var(--hairline)",
-              }}
-            >
-              <div className="legend-item">
-                <span
-                  className="legend-swatch"
-                  style={{ background: "var(--accent-soft)" }}
-                />
-                Breakfast quality
-              </div>
-              <div className="legend-item">
-                <span
-                  className="legend-swatch"
-                  style={{ background: "var(--warm-soft)" }}
-                />
-                Dinner quality
-              </div>
-              <div className="legend-item">
-                <span
-                  className="legend-swatch"
-                  style={{ background: "var(--surface-2)" }}
-                />
-                Lunch quality
-              </div>
-              <div
-                style={{
-                  marginLeft: "auto",
-                  fontFamily: "var(--mono)",
-                  fontSize: 10,
-                  color: "var(--muted)",
-                }}
-              >
-                composite score / 100
-              </div>
-            </div>
+        {/* Daily totals */}
+        <div style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))",
+          gap: 2,
+          marginBottom: 24,
+        }}>
+          <div className="card" style={{ padding: "20px 24px", textAlign: "center" }}>
+            <div style={{ fontFamily: "var(--mono)", fontSize: 10, color: "var(--muted)", letterSpacing: "0.14em" }}>DAILY TOTAL</div>
+            <div style={{ fontFamily: "var(--serif)", fontSize: 28, marginTop: 6 }}>{totalKcal}</div>
+            <div style={{ fontFamily: "var(--mono)", fontSize: 10, color: "var(--muted)", marginTop: 2 }}>kcal</div>
           </div>
-
-          <div className="card span-4">
-            <div className="card-head">
-              <div className="card-title">Patterns this week</div>
-            </div>
-            <div
-              style={{
-                display: "flex",
-                flexDirection: "column",
-                gap: 14,
-              }}
-            >
-              {patterns.map((r, i) => (
-                <div
-                  key={i}
-                  style={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    alignItems: "baseline",
-                    padding: "6px 0",
-                    borderBottom:
-                      i < 4 ? "1px solid var(--hairline)" : "0",
-                  }}
-                >
-                  <div style={{ fontSize: 13, color: "var(--ink-2)" }}>
-                    {r.l}
-                  </div>
-                  <div
-                    style={{
-                      fontFamily: "var(--mono)",
-                      fontSize: 12,
-                      letterSpacing: "0.04em",
-                      color:
-                        r.tone === "good"
-                          ? "var(--accent)"
-                          : r.tone === "warn"
-                          ? "oklch(0.55 0.12 75)"
-                          : "var(--ink-2)",
-                    }}
-                  >
-                    {r.v}
-                  </div>
-                </div>
-              ))}
-            </div>
-            <div className="aging-callout" style={{ marginTop: 18 }}>
-              <div className="aging-callout-num">47</div>
-              <div className="aging-callout-text">
-                <strong>Logging streak.</strong> Don&apos;t break the chain —
-                every meal photo trains your pattern model.
-              </div>
-            </div>
+          <div className="card" style={{ padding: "20px 24px", textAlign: "center" }}>
+            <div style={{ fontFamily: "var(--mono)", fontSize: 10, color: "var(--muted)", letterSpacing: "0.14em" }}>PROTEIN</div>
+            <div style={{ fontFamily: "var(--serif)", fontSize: 28, marginTop: 6 }}>{totalProtein}</div>
+            <div style={{ fontFamily: "var(--mono)", fontSize: 10, color: "var(--muted)", marginTop: 2 }}>per day</div>
           </div>
+          <div className="card" style={{ padding: "20px 24px", textAlign: "center" }}>
+            <div style={{ fontFamily: "var(--mono)", fontSize: 10, color: "var(--muted)", letterSpacing: "0.14em" }}>MEALS</div>
+            <div style={{ fontFamily: "var(--serif)", fontSize: 28, marginTop: 6 }}>2</div>
+            <div style={{ fontFamily: "var(--mono)", fontSize: 10, color: "var(--muted)", marginTop: 2 }}>per day</div>
+          </div>
+          <div className="card" style={{ padding: "20px 24px", textAlign: "center" }}>
+            <div style={{ fontFamily: "var(--mono)", fontSize: 10, color: "var(--muted)", letterSpacing: "0.14em" }}>PREP</div>
+            <div style={{ fontFamily: "var(--serif)", fontSize: 28, marginTop: 6 }}>Sun</div>
+            <div style={{ fontFamily: "var(--mono)", fontSize: 10, color: "var(--muted)", marginTop: 2 }}>batch cook</div>
+          </div>
+        </div>
+
+        {/* Meal plans */}
+        <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+          {MEALS.map((meal) => (
+            <MealPlanCard key={meal.kind} meal={meal} />
+          ))}
+        </div>
+
+        {/* Photo log */}
+        <div className="divider-label">Today&apos;s photo log</div>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+          <MealPhotoCard kind="Breakfast" />
+          <MealPhotoCard kind="Lunch" />
         </div>
       </div>
     </div>
