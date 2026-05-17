@@ -1,58 +1,123 @@
 "use client";
 
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 
 interface WeightEntry {
-  date: Date;
+  date: string; // ISO date string
   w: number;
 }
 
-function generateEntries(): WeightEntry[] {
-  const start = new Date();
-  start.setDate(start.getDate() - 119);
-  const arr: WeightEntry[] = [];
-  let w = 78.4;
-  for (let i = 0; i < 120; i++) {
-    const drift = -0.024;
-    const noise =
-      Math.sin(i * 0.6) * 0.18 +
-      Math.cos(i * 1.3) * 0.12 +
-      (i % 7 === 6 ? 0.4 : 0);
-    w = w + drift + noise * 0.1;
-    const date = new Date(start);
-    date.setDate(start.getDate() + i);
-    arr.push({ date, w: parseFloat(w.toFixed(2)) });
+interface WeightPlan {
+  startWeight: number;
+  weeklyGain: number; // kg per week
+  weeks: number;
+}
+
+const STORAGE_KEY = "helix-weight-entries";
+const PLAN_KEY = "helix-weight-plan";
+
+function loadEntries(): WeightEntry[] {
+  if (typeof window === "undefined") return [];
+  const raw = localStorage.getItem(STORAGE_KEY);
+  if (!raw) return [];
+  try {
+    return JSON.parse(raw);
+  } catch {
+    return [];
   }
-  const adjust = 74.6 - arr[arr.length - 1].w;
-  return arr.map((e) => ({
-    ...e,
-    w: parseFloat((e.w + adjust).toFixed(2)),
-  }));
+}
+
+function saveEntries(entries: WeightEntry[]) {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(entries));
+}
+
+function loadPlan(): WeightPlan | null {
+  if (typeof window === "undefined") return null;
+  const raw = localStorage.getItem(PLAN_KEY);
+  if (!raw) return null;
+  try {
+    return JSON.parse(raw);
+  } catch {
+    return null;
+  }
+}
+
+function savePlan(plan: WeightPlan) {
+  localStorage.setItem(PLAN_KEY, JSON.stringify(plan));
 }
 
 export default function Weight() {
-  const [entries, setEntries] = useState<WeightEntry[]>(() => generateEntries());
+  const [entries, setEntries] = useState<WeightEntry[]>([]);
   const [draft, setDraft] = useState("");
+  const [plan, setPlan] = useState<WeightPlan | null>(null);
+  const [planDraft, setPlanDraft] = useState({ weeklyGain: "0.3", weeks: "16" });
+  const [loaded, setLoaded] = useState(false);
 
-  const submit = (e: React.FormEvent) => {
+  useEffect(() => {
+    setEntries(loadEntries());
+    setPlan(loadPlan());
+    setLoaded(true);
+  }, []);
+
+  const submitWeight = (e: React.FormEvent) => {
     e.preventDefault();
     const v = parseFloat(draft);
-    if (isNaN(v)) return;
-    const last = entries[entries.length - 1];
-    const date = new Date(last.date);
-    date.setDate(date.getDate() + 1);
-    setEntries([...entries, { date, w: v }]);
+    if (isNaN(v) || v < 20 || v > 300) return;
+    const today = new Date().toISOString().slice(0, 10);
+    // Replace if already logged today, otherwise add
+    const updated = entries.filter((en) => en.date !== today);
+    updated.push({ date: today, w: v });
+    updated.sort((a, b) => a.date.localeCompare(b.date));
+    setEntries(updated);
+    saveEntries(updated);
     setDraft("");
+
+    // If no plan exists yet, set start weight
+    if (!plan) {
+      const newPlan: WeightPlan = {
+        startWeight: v,
+        weeklyGain: parseFloat(planDraft.weeklyGain) || 0.3,
+        weeks: parseInt(planDraft.weeks) || 16,
+      };
+      setPlan(newPlan);
+      savePlan(newPlan);
+    }
   };
 
-  const current = entries[entries.length - 1].w;
-  const start = entries[0].w;
-  const monthAgo = entries[entries.length - 30].w;
-  const goal = 73.0;
-  const remaining = (current - goal).toFixed(1);
-  const total = (start - current).toFixed(1);
-  const last30 = (monthAgo - current).toFixed(1);
+  const submitPlan = (e: React.FormEvent) => {
+    e.preventDefault();
+    const weeklyGain = parseFloat(planDraft.weeklyGain);
+    const weeks = parseInt(planDraft.weeks);
+    if (isNaN(weeklyGain) || isNaN(weeks) || weeks < 1) return;
+    const startWeight = entries.length > 0 ? entries[0].w : 0;
+    const newPlan: WeightPlan = { startWeight, weeklyGain, weeks };
+    setPlan(newPlan);
+    savePlan(newPlan);
+  };
 
+  const current = entries.length > 0 ? entries[entries.length - 1].w : null;
+  const startW = entries.length > 0 ? entries[0].w : null;
+  const totalGain = current && startW ? (current - startW).toFixed(1) : null;
+
+  const targetWeight = plan
+    ? plan.startWeight + plan.weeklyGain * plan.weeks
+    : null;
+  const remaining = current && targetWeight ? (targetWeight - current).toFixed(1) : null;
+
+  // Weeks elapsed
+  const weeksElapsed = useMemo(() => {
+    if (entries.length < 2) return 0;
+    const first = new Date(entries[0].date).getTime();
+    const last = new Date(entries[entries.length - 1].date).getTime();
+    return Math.max(0, (last - first) / (7 * 24 * 3600 * 1000));
+  }, [entries]);
+
+  const actualWeeklyRate = useMemo(() => {
+    if (weeksElapsed < 0.5 || !totalGain) return null;
+    return (parseFloat(totalGain) / weeksElapsed).toFixed(2);
+  }, [weeksElapsed, totalGain]);
+
+  // 7-day moving average
   const movingAvg = useMemo(
     () =>
       entries.map((_, i) => {
@@ -63,18 +128,265 @@ export default function Weight() {
     [entries]
   );
 
-  const labels = entries.map((e, i) => {
-    if (i === 0 || i === entries.length - 1 || i % 30 === 0) {
-      return e.date.toLocaleDateString("en-US", {
-        month: "short",
-        day: "numeric",
-      });
-    }
-    return "";
-  });
+  // Chart
+  const hasChart = entries.length >= 2;
 
-  const yMin = Math.floor(Math.min(...entries.map((e) => e.w)) - 0.5);
-  const yMax = Math.ceil(Math.max(...entries.map((e) => e.w)) + 0.5);
+  if (!loaded) {
+    return (
+      <div style={{
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        height: 400,
+        fontFamily: "var(--serif)",
+        fontSize: 18,
+        color: "var(--muted)",
+      }}>
+        Loading...
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      <div className="page-head">
+        <div>
+          <div className="page-eyebrow">
+            Body composition · daily morning weigh-in
+          </div>
+          <h1 className="page-title">
+            Weight, <em>over time</em>
+          </h1>
+          <p className="page-sub">
+            {plan
+              ? `Gaining ${plan.weeklyGain} kg/week over ${plan.weeks} weeks. Target: ${(plan.startWeight + plan.weeklyGain * plan.weeks).toFixed(1)} kg.`
+              : "Set your weekly gain target and duration to start tracking progress."}
+          </p>
+        </div>
+      </div>
+
+      <div className="page-body">
+        {/* Plan setup */}
+        <div className="card" style={{ padding: 28, marginBottom: 20 }}>
+          <div style={{
+            fontFamily: "var(--mono)",
+            fontSize: 10,
+            letterSpacing: "0.14em",
+            color: "var(--muted)",
+            marginBottom: 16,
+          }}>
+            {plan ? "GAIN PLAN" : "SET YOUR PLAN"}
+          </div>
+
+          <form onSubmit={submitPlan} style={{ display: "flex", gap: 16, alignItems: "end", flexWrap: "wrap" }}>
+            <div>
+              <label style={{
+                display: "block",
+                fontFamily: "var(--mono)",
+                fontSize: 10,
+                color: "var(--muted)",
+                marginBottom: 6,
+              }}>
+                Weekly gain (kg)
+              </label>
+              <input
+                className="log-input"
+                value={planDraft.weeklyGain}
+                onChange={(e) => setPlanDraft({ ...planDraft, weeklyGain: e.target.value })}
+                inputMode="decimal"
+                style={{ width: 100 }}
+              />
+            </div>
+            <div>
+              <label style={{
+                display: "block",
+                fontFamily: "var(--mono)",
+                fontSize: 10,
+                color: "var(--muted)",
+                marginBottom: 6,
+              }}>
+                Duration (weeks)
+              </label>
+              <input
+                className="log-input"
+                value={planDraft.weeks}
+                onChange={(e) => setPlanDraft({ ...planDraft, weeks: e.target.value })}
+                inputMode="numeric"
+                style={{ width: 100 }}
+              />
+            </div>
+            <button type="submit" className="btn accent">
+              {plan ? "Update plan" : "Set plan"}
+            </button>
+          </form>
+
+          {plan && (
+            <div style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))",
+              gap: 20,
+              marginTop: 24,
+              paddingTop: 20,
+              borderTop: "1px solid var(--hairline)",
+            }}>
+              <div>
+                <div style={{ fontFamily: "var(--mono)", fontSize: 10, color: "var(--muted)" }}>START</div>
+                <div style={{ fontFamily: "var(--serif)", fontSize: 24, marginTop: 4 }}>
+                  {plan.startWeight.toFixed(1)} <span style={{ fontFamily: "var(--mono)", fontSize: 11, color: "var(--muted)" }}>kg</span>
+                </div>
+              </div>
+              <div>
+                <div style={{ fontFamily: "var(--mono)", fontSize: 10, color: "var(--muted)" }}>TARGET</div>
+                <div style={{ fontFamily: "var(--serif)", fontSize: 24, marginTop: 4, color: "var(--accent)" }}>
+                  {targetWeight!.toFixed(1)} <span style={{ fontFamily: "var(--mono)", fontSize: 11, color: "var(--muted)" }}>kg</span>
+                </div>
+              </div>
+              <div>
+                <div style={{ fontFamily: "var(--mono)", fontSize: 10, color: "var(--muted)" }}>REMAINING</div>
+                <div style={{ fontFamily: "var(--serif)", fontSize: 24, marginTop: 4 }}>
+                  {remaining ? `+${remaining}` : "—"} <span style={{ fontFamily: "var(--mono)", fontSize: 11, color: "var(--muted)" }}>kg</span>
+                </div>
+              </div>
+              <div>
+                <div style={{ fontFamily: "var(--mono)", fontSize: 10, color: "var(--muted)" }}>ACTUAL RATE</div>
+                <div style={{ fontFamily: "var(--serif)", fontSize: 24, marginTop: 4 }}>
+                  {actualWeeklyRate ? `${Number(actualWeeklyRate) >= 0 ? "+" : ""}${actualWeeklyRate}` : "—"} <span style={{ fontFamily: "var(--mono)", fontSize: 11, color: "var(--muted)" }}>kg/wk</span>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Log weight */}
+        <form className="log-bar" onSubmit={submitWeight}>
+          <div className="log-bar-label">Log this morning</div>
+          <input
+            className="log-input"
+            placeholder="75.0"
+            value={draft}
+            onChange={(e) => setDraft(e.target.value)}
+            inputMode="decimal"
+          />
+          <span style={{ fontFamily: "var(--mono)", fontSize: 11, color: "var(--muted)" }}>
+            kg · fasted
+          </span>
+          <button type="submit" className="btn accent">
+            Log weight
+          </button>
+        </form>
+
+        {/* Chart */}
+        {hasChart && (
+          <div className="card trend-card" style={{ marginTop: 20 }}>
+            <div className="trend-head">
+              <div>
+                <div className="trend-title">
+                  Daily weigh-in <em>vs.</em> 7-day moving average
+                </div>
+                <div className="trend-sub">
+                  {plan && `Target line at ${targetWeight!.toFixed(1)} kg. `}
+                  Bold line is the smoothed signal.
+                </div>
+              </div>
+              <div className="legend">
+                <div className="legend-item">
+                  <span className="legend-swatch" style={{ background: "var(--faint)", borderRadius: 100, width: 8, height: 8 }} />
+                  Daily
+                </div>
+                <div className="legend-item">
+                  <span className="legend-swatch" style={{ background: "var(--accent)" }} />
+                  7-day avg
+                </div>
+                {plan && (
+                  <div className="legend-item">
+                    <span className="legend-swatch" style={{ background: "var(--accent)", borderTop: "1px dashed", height: 0 }} />
+                    Target
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <WeightChart entries={entries} movingAvg={movingAvg} targetWeight={targetWeight} />
+          </div>
+        )}
+
+        {/* Recent entries */}
+        {entries.length > 0 && (
+          <>
+            <div className="divider-label">Recent weigh-ins</div>
+            <div className="card" style={{ padding: 0 }}>
+              {[...entries]
+                .reverse()
+                .slice(0, 10)
+                .map((e, i, arr) => {
+                  const prev = arr[i + 1];
+                  const delta = prev ? (e.w - prev.w).toFixed(2) : null;
+                  return (
+                    <div
+                      key={e.date}
+                      style={{
+                        display: "grid",
+                        gridTemplateColumns: "1.4fr 1fr 1fr",
+                        padding: "16px 24px",
+                        borderBottom: i < arr.length - 1 ? "1px solid var(--hairline)" : "0",
+                        alignItems: "center",
+                      }}
+                    >
+                      <div style={{ fontFamily: "var(--serif)", fontStyle: "italic", fontSize: 16 }}>
+                        {new Date(e.date + "T00:00:00").toLocaleDateString("en-US", {
+                          weekday: "long",
+                          month: "long",
+                          day: "numeric",
+                        })}
+                      </div>
+                      <div style={{ fontFamily: "var(--serif)", fontSize: 24, letterSpacing: "-0.02em" }}>
+                        {e.w.toFixed(2)}{" "}
+                        <span style={{ fontFamily: "var(--mono)", fontSize: 11, color: "var(--muted)" }}>kg</span>
+                      </div>
+                      <div style={{
+                        fontFamily: "var(--mono)",
+                        fontSize: 11,
+                        color: delta == null ? "var(--faint)" : Number(delta) > 0 ? "var(--accent)" : "var(--danger)",
+                        textAlign: "right",
+                      }}>
+                        {delta == null ? "—" : `${Number(delta) > 0 ? "+" : ""}${delta} kg`}
+                      </div>
+                    </div>
+                  );
+                })}
+            </div>
+          </>
+        )}
+
+        {entries.length === 0 && (
+          <div className="card" style={{ padding: 40, textAlign: "center", marginTop: 20 }}>
+            <div style={{ fontFamily: "var(--serif)", fontSize: 24, marginBottom: 12 }}>
+              No weigh-ins yet
+            </div>
+            <p style={{ color: "var(--muted)", maxWidth: 400, margin: "0 auto", lineHeight: 1.6 }}>
+              Log your first morning weight above to start tracking. The chart and stats will appear once you have at least 2 entries.
+            </p>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function WeightChart({
+  entries,
+  movingAvg,
+  targetWeight,
+}: {
+  entries: WeightEntry[];
+  movingAvg: number[];
+  targetWeight: number | null;
+}) {
+  const allWeights = entries.map((e) => e.w);
+  if (targetWeight) allWeights.push(targetWeight);
+
+  const yMin = Math.floor(Math.min(...allWeights) - 0.5);
+  const yMax = Math.ceil(Math.max(...allWeights) + 0.5);
 
   const chartWidth = 1100;
   const chartHeight = 380;
@@ -82,7 +394,7 @@ export default function Weight() {
   const innerW = chartWidth - padding.left - padding.right;
   const innerH = chartHeight - padding.top - padding.bottom;
   const n = entries.length;
-  const xPos = (i: number) => padding.left + (i / (n - 1)) * innerW;
+  const xPos = (i: number) => padding.left + (i / Math.max(n - 1, 1)) * innerW;
   const yPos = (v: number) =>
     padding.top + (1 - (v - yMin) / (yMax - yMin)) * innerH;
 
@@ -97,369 +409,115 @@ export default function Weight() {
     .join(" ");
   const avgArea = `${avgPath} L ${xPos(n - 1)} ${yPos(yMin)} L ${xPos(0)} ${yPos(yMin)} Z`;
 
+  const labels = entries.map((e, i) => {
+    if (i === 0 || i === n - 1 || (n > 14 && i % Math.ceil(n / 5) === 0)) {
+      return new Date(e.date + "T00:00:00").toLocaleDateString("en-US", {
+        month: "short",
+        day: "numeric",
+      });
+    }
+    return "";
+  });
+
   return (
-    <div>
-      <div className="page-head">
-        <div>
-          <div className="page-eyebrow">
-            Body composition · daily morning weigh-in
-          </div>
-          <h1 className="page-title">
-            Weight, <em>over time</em>
-          </h1>
-          <p className="page-sub">
-            120 days of morning-fasted measurements. 7-day moving average
-            smooths out the daily noise from hydration, sodium, and circadian
-            shifts.
-          </p>
-        </div>
-        <div className="page-chips">
-          <span className="chip live">Synced 06:48</span>
-          <span className="chip">Withings · scale</span>
-        </div>
-      </div>
+    <svg width="100%" viewBox={`0 0 ${chartWidth} ${chartHeight}`} style={{ display: "block" }}>
+      <defs>
+        <linearGradient id="weight-grad" x1="0" x2="0" y1="0" y2="1">
+          <stop offset="0%" stopColor="var(--accent)" stopOpacity={0.18} />
+          <stop offset="100%" stopColor="var(--accent)" stopOpacity={0} />
+        </linearGradient>
+      </defs>
 
-      <div className="page-body">
-        <div className="weight-stats">
-          <div className="wstat">
-            <div className="wstat-label">Current</div>
-            <div className="wstat-val">
-              {current.toFixed(1)}
-              <span className="unit">kg</span>
-            </div>
-            <div className="wstat-foot">measured today, 06:48</div>
-          </div>
-          <div className="wstat">
-            <div className="wstat-label">30-day Δ</div>
-            <div className="wstat-val">
-              −{last30}
-              <span className="unit">kg</span>
-            </div>
-            <div className="wstat-foot up">on pace · ~0.5kg/wk</div>
-          </div>
-          <div className="wstat">
-            <div className="wstat-label">Total lost</div>
-            <div className="wstat-val">
-              −{total}
-              <span className="unit">kg</span>
-            </div>
-            <div className="wstat-foot">
-              since{" "}
-              {entries[0].date.toLocaleDateString("en-US", {
-                month: "short",
-                day: "numeric",
-              })}
-            </div>
-          </div>
-          <div className="wstat">
-            <div className="wstat-label">To goal</div>
-            <div className="wstat-val" style={{ color: "var(--accent)" }}>
-              {remaining}
-              <span className="unit">kg</span>
-            </div>
-            <div className="wstat-foot up">
-              eta ~3 weeks at current pace
-            </div>
-          </div>
-        </div>
-
-        <div className="card trend-card" style={{ marginTop: 20 }}>
-          <div className="trend-head">
-            <div>
-              <div className="trend-title">
-                Daily weigh-in <em>vs.</em> 7-day moving average
-              </div>
-              <div className="trend-sub">
-                Goal of 73.0 kg shown as the horizontal threshold. Faint marks
-                are raw daily readings; the bold line is the smoothed signal.
-              </div>
-            </div>
-            <div className="legend">
-              <div className="legend-item">
-                <span
-                  className="legend-swatch"
-                  style={{
-                    background: "var(--faint)",
-                    borderRadius: 100,
-                    width: 8,
-                    height: 8,
-                  }}
-                />
-                Daily
-              </div>
-              <div className="legend-item">
-                <span
-                  className="legend-swatch"
-                  style={{ background: "var(--accent)" }}
-                />
-                7-day avg
-              </div>
-              <div className="legend-item">
-                <span
-                  className="legend-swatch"
-                  style={{
-                    background: "var(--danger)",
-                    borderTop: "1px dashed",
-                    height: 0,
-                  }}
-                />
-                Goal · 73.0
-              </div>
-            </div>
-          </div>
-
-          <svg
-            width="100%"
-            viewBox={`0 0 ${chartWidth} ${chartHeight}`}
-            style={{ display: "block" }}
-          >
-            <defs>
-              <linearGradient
-                id="weight-grad"
-                x1="0"
-                x2="0"
-                y1="0"
-                y2="1"
-              >
-                <stop
-                  offset="0%"
-                  stopColor="var(--accent)"
-                  stopOpacity={0.18}
-                />
-                <stop
-                  offset="100%"
-                  stopColor="var(--accent)"
-                  stopOpacity={0}
-                />
-              </linearGradient>
-            </defs>
-
-            {ticks.map((t, i) => (
-              <g key={i}>
-                <line
-                  x1={padding.left}
-                  x2={chartWidth - padding.right}
-                  y1={yPos(t)}
-                  y2={yPos(t)}
-                  stroke="var(--hairline)"
-                  strokeDasharray={
-                    i === 0 || i === ticks.length - 1 ? "" : "2 4"
-                  }
-                />
-                <text
-                  x={padding.left - 10}
-                  y={yPos(t) + 4}
-                  fontSize="10"
-                  fill="var(--muted)"
-                  fontFamily="var(--mono)"
-                  textAnchor="end"
-                >
-                  {t.toFixed(0)}
-                </text>
-              </g>
-            ))}
-            <text
-              x={padding.left - 48}
-              y={padding.top - 8}
-              fontSize="9"
-              fill="var(--faint)"
-              fontFamily="var(--mono)"
-              letterSpacing="0.1em"
-            >
-              KG
-            </text>
-
-            <line
-              x1={padding.left}
-              x2={chartWidth - padding.right}
-              y1={yPos(goal)}
-              y2={yPos(goal)}
-              stroke="var(--danger)"
-              strokeDasharray="5 5"
-              strokeWidth="1.2"
-            />
-            <text
-              x={chartWidth - padding.right - 8}
-              y={yPos(goal) - 6}
-              fontSize="10"
-              fill="var(--danger)"
-              fontFamily="var(--mono)"
-              textAnchor="end"
-              letterSpacing="0.1em"
-            >
-              GOAL · 73.0
-            </text>
-
-            {entries.map((e, i) => (
-              <circle
-                key={i}
-                cx={xPos(i)}
-                cy={yPos(e.w)}
-                r="1.6"
-                fill="var(--faint)"
-              />
-            ))}
-
-            <path d={avgArea} fill="url(#weight-grad)" />
-            <path
-              d={avgPath}
-              stroke="var(--accent)"
-              strokeWidth="2.25"
-              fill="none"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-
-            <circle
-              cx={xPos(n - 1)}
-              cy={yPos(movingAvg[n - 1])}
-              r="10"
-              fill="var(--accent)"
-              opacity="0.15"
-            />
-            <circle
-              cx={xPos(n - 1)}
-              cy={yPos(movingAvg[n - 1])}
-              r="4.5"
-              fill="var(--accent)"
-            />
-            <text
-              x={xPos(n - 1) - 12}
-              y={yPos(movingAvg[n - 1]) - 14}
-              fontSize="13"
-              fill="var(--ink)"
-              fontFamily="var(--serif)"
-              textAnchor="end"
-              fontStyle="italic"
-            >
-              {movingAvg[n - 1].toFixed(2)} kg
-            </text>
-
-            {labels.map((lbl, i) =>
-              lbl ? (
-                <text
-                  key={i}
-                  x={xPos(i)}
-                  y={chartHeight - padding.bottom + 20}
-                  fontSize="10"
-                  fill="var(--muted)"
-                  fontFamily="var(--mono)"
-                  textAnchor="middle"
-                  letterSpacing="0.06em"
-                >
-                  {lbl}
-                </text>
-              ) : null
-            )}
-          </svg>
-        </div>
-
-        <form className="log-bar" onSubmit={submit}>
-          <div className="log-bar-label">Log this morning</div>
-          <input
-            className="log-input"
-            placeholder="74.5"
-            value={draft}
-            onChange={(e) => setDraft(e.target.value)}
-            inputMode="decimal"
+      {ticks.map((t, i) => (
+        <g key={i}>
+          <line
+            x1={padding.left}
+            x2={chartWidth - padding.right}
+            y1={yPos(t)}
+            y2={yPos(t)}
+            stroke="var(--hairline)"
+            strokeDasharray={i === 0 || i === ticks.length - 1 ? "" : "2 4"}
           />
-          <span
-            style={{
-              fontFamily: "var(--mono)",
-              fontSize: 11,
-              color: "var(--muted)",
-            }}
+          <text
+            x={padding.left - 10}
+            y={yPos(t) + 4}
+            fontSize="10"
+            fill="var(--muted)"
+            fontFamily="var(--mono)"
+            textAnchor="end"
           >
-            kg · fasted
-          </span>
-          <button type="submit" className="btn accent">
-            Log weight
-          </button>
-        </form>
+            {t.toFixed(1)}
+          </text>
+        </g>
+      ))}
 
-        <div className="divider-label">Recent weigh-ins</div>
-        <div className="card" style={{ padding: 0 }}>
-          {[...entries]
-            .reverse()
-            .slice(0, 8)
-            .map((e, i, arr) => {
-              const prev = arr[i + 1];
-              const delta = prev ? (e.w - prev.w).toFixed(2) : null;
-              return (
-                <div
-                  key={i}
-                  style={{
-                    display: "grid",
-                    gridTemplateColumns: "1.4fr 1fr 1fr 1fr",
-                    padding: "16px 24px",
-                    borderBottom:
-                      i < 7 ? "1px solid var(--hairline)" : "0",
-                    alignItems: "center",
-                  }}
-                >
-                  <div
-                    style={{
-                      fontFamily: "var(--serif)",
-                      fontStyle: "italic",
-                      fontSize: 16,
-                    }}
-                  >
-                    {e.date.toLocaleDateString("en-US", {
-                      weekday: "long",
-                      month: "long",
-                      day: "numeric",
-                    })}
-                  </div>
-                  <div
-                    style={{
-                      fontFamily: "var(--serif)",
-                      fontSize: 24,
-                      letterSpacing: "-0.02em",
-                    }}
-                  >
-                    {e.w.toFixed(2)}{" "}
-                    <span
-                      style={{
-                        fontFamily: "var(--mono)",
-                        fontSize: 11,
-                        color: "var(--muted)",
-                      }}
-                    >
-                      kg
-                    </span>
-                  </div>
-                  <div
-                    style={{
-                      fontFamily: "var(--mono)",
-                      fontSize: 11,
-                      color:
-                        delta == null
-                          ? "var(--faint)"
-                          : Number(delta) > 0
-                          ? "var(--danger)"
-                          : "var(--accent)",
-                    }}
-                  >
-                    {delta == null
-                      ? "—"
-                      : `${Number(delta) > 0 ? "+" : ""}${delta} kg`}
-                  </div>
-                  <div
-                    style={{
-                      fontFamily: "var(--mono)",
-                      fontSize: 10,
-                      color: "var(--muted)",
-                      textAlign: "right",
-                      letterSpacing: "0.08em",
-                    }}
-                  >
-                    06:{40 + (i % 8)} · FASTED
-                  </div>
-                </div>
-              );
-            })}
-        </div>
-      </div>
-    </div>
+      {/* Target line */}
+      {targetWeight && (
+        <>
+          <line
+            x1={padding.left}
+            x2={chartWidth - padding.right}
+            y1={yPos(targetWeight)}
+            y2={yPos(targetWeight)}
+            stroke="var(--accent)"
+            strokeDasharray="5 5"
+            strokeWidth="1.2"
+          />
+          <text
+            x={chartWidth - padding.right - 8}
+            y={yPos(targetWeight) - 6}
+            fontSize="10"
+            fill="var(--accent)"
+            fontFamily="var(--mono)"
+            textAnchor="end"
+            letterSpacing="0.1em"
+          >
+            TARGET · {targetWeight.toFixed(1)}
+          </text>
+        </>
+      )}
+
+      {/* Data points */}
+      {entries.map((e, i) => (
+        <circle key={i} cx={xPos(i)} cy={yPos(e.w)} r="1.6" fill="var(--faint)" />
+      ))}
+
+      {/* Moving average */}
+      <path d={avgArea} fill="url(#weight-grad)" />
+      <path d={avgPath} stroke="var(--accent)" strokeWidth="2.25" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+
+      {/* Current dot */}
+      <circle cx={xPos(n - 1)} cy={yPos(movingAvg[n - 1])} r="10" fill="var(--accent)" opacity="0.15" />
+      <circle cx={xPos(n - 1)} cy={yPos(movingAvg[n - 1])} r="4.5" fill="var(--accent)" />
+      <text
+        x={xPos(n - 1) - 12}
+        y={yPos(movingAvg[n - 1]) - 14}
+        fontSize="13"
+        fill="var(--ink)"
+        fontFamily="var(--serif)"
+        textAnchor="end"
+        fontStyle="italic"
+      >
+        {movingAvg[n - 1].toFixed(2)} kg
+      </text>
+
+      {/* X-axis labels */}
+      {labels.map((lbl, i) =>
+        lbl ? (
+          <text
+            key={i}
+            x={xPos(i)}
+            y={chartHeight - padding.bottom + 20}
+            fontSize="10"
+            fill="var(--muted)"
+            fontFamily="var(--mono)"
+            textAnchor="middle"
+            letterSpacing="0.06em"
+          >
+            {lbl}
+          </text>
+        ) : null
+      )}
+    </svg>
   );
 }
