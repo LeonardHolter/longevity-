@@ -125,7 +125,7 @@ export default function Food() {
   const weekDays = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
   const breakfastScores = [88, 92, 84, 90, 86, 78, 90];
   const dinnerScores = [70, 65, 80, 72, 60, 55, 82];
-  const kveldScores = [75, 80, 70, 72, 65, 70, 78];
+  const lunchScores = [75, 80, 70, 72, 65, 70, 78];
 
   const patterns = [
     { l: "Whole-food breakfasts", v: "7 / 7", tone: "good" },
@@ -140,7 +140,7 @@ export default function Food() {
       <div className="page-head">
         <div>
           <div className="page-eyebrow">
-            Nutrition log · breakfast · dinner · kveldsmat
+            Nutrition log · breakfast · dinner · lunch
           </div>
           <h1 className="page-title">
             What you <em>fed</em> the system
@@ -240,8 +240,8 @@ export default function Food() {
             }
           />
           <MealCard
-            slotId="meal-kveldsmat"
-            kind="Kveldsmat"
+            slotId="meal-lunch"
+            kind="Lunch"
             sub="22 · Late night"
             time="22:05"
             defaultNote={
@@ -333,7 +333,7 @@ export default function Food() {
                       {dinnerScores[i]}
                     </div>
                     <div
-                      title={`Kveldsmat ${kveldScores[i]}`}
+                      title={`Lunch ${lunchScores[i]}`}
                       style={{
                         height: 28,
                         background: "var(--surface-2)",
@@ -346,7 +346,7 @@ export default function Food() {
                         color: "var(--ink-2)",
                       }}
                     >
-                      {kveldScores[i]}
+                      {lunchScores[i]}
                     </div>
                   </div>
                 </div>
@@ -380,7 +380,7 @@ export default function Food() {
                   className="legend-swatch"
                   style={{ background: "var(--surface-2)" }}
                 />
-                Kveldsmat quality
+                Lunch quality
               </div>
               <div
                 style={{
