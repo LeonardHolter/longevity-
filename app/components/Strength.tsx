@@ -2,6 +2,7 @@
 
 import React, { useState, useCallback } from "react";
 import { useUserData } from "../lib/useUserData";
+import { OpponentButton } from "./OpponentView";
 
 interface Exercise {
   name: string;
@@ -359,6 +360,74 @@ export default function Strength() {
             Legs · Push · Pull · Abs · Z2 cardio · Norwegian 4×4 HIIT.
             Progressive overload builds muscle and bone density past 30.
           </p>
+        </div>
+        <div className="page-chips">
+          <OpponentButton
+            dataKey="strengthLogs"
+            renderOpponent={(data, name) => {
+              const sLogs = (data as StrengthLogs | null) || {};
+              const todayKey = new Date().toISOString().slice(0, 10);
+              const todayData = sLogs[todayKey] || {};
+              const dayId = activeDay;
+              const dayData = todayData[dayId] || {};
+              const exercises = Object.entries(dayData);
+
+              // Count total days logged
+              const totalDays = Object.keys(sLogs).length;
+
+              return (
+                <div>
+                  <div style={{ fontFamily: "var(--serif)", fontSize: 16, marginBottom: 4 }}>{name}&apos;s workout</div>
+                  <div style={{ fontFamily: "var(--mono)", fontSize: 10, color: "var(--muted)", marginBottom: 20 }}>
+                    {totalDays} days logged total
+                  </div>
+
+                  {exercises.length === 0 ? (
+                    <div style={{ color: "var(--muted)", fontFamily: "var(--serif)", fontSize: 14 }}>
+                      No workout logged today for {currentDay.tag}.
+                    </div>
+                  ) : (
+                    exercises.map(([exName, sets]) => (
+                      <div key={exName} style={{ marginBottom: 16 }}>
+                        <div style={{ fontFamily: "var(--serif)", fontStyle: "italic", fontSize: 16, marginBottom: 8 }}>{exName}</div>
+                        {(sets as SetData[]).map((s, i) => (
+                          s.weight || s.reps ? (
+                            <div key={i} style={{ display: "flex", gap: 16, padding: "6px 0", fontFamily: "var(--mono)", fontSize: 12, color: "var(--ink-2)" }}>
+                              <span style={{ color: "var(--muted)" }}>Set {i + 1}</span>
+                              {s.weight && <span>{s.weight} kg</span>}
+                              {s.reps && <span>× {s.reps}</span>}
+                            </div>
+                          ) : null
+                        ))}
+                      </div>
+                    ))
+                  )}
+
+                  {/* Show last few logged days */}
+                  {totalDays > 0 && (
+                    <>
+                      <div className="divider-label">Recent sessions</div>
+                      {Object.keys(sLogs).sort().reverse().slice(0, 5).map((date) => {
+                        const dayEntries = sLogs[date];
+                        const dayIds = Object.keys(dayEntries);
+                        const totalExercises = dayIds.reduce((sum, did) => sum + Object.keys(dayEntries[did]).length, 0);
+                        return (
+                          <div key={date} style={{ display: "flex", justifyContent: "space-between", padding: "10px 0", borderBottom: "1px solid var(--hairline)" }}>
+                            <div style={{ fontFamily: "var(--serif)", fontSize: 14 }}>
+                              {new Date(date + "T00:00:00").toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" })}
+                            </div>
+                            <div style={{ fontFamily: "var(--mono)", fontSize: 11, color: "var(--muted)" }}>
+                              {totalExercises} exercises
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </>
+                  )}
+                </div>
+              );
+            }}
+          />
         </div>
       </div>
 

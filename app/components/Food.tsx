@@ -2,6 +2,7 @@
 
 import React, { useState } from "react";
 import { useUserData } from "../lib/useUserData";
+import { OpponentButton } from "./OpponentView";
 
 /* ── types ── */
 interface FoodItem {
@@ -153,11 +154,71 @@ export default function Food() {
             Hit {KCAL_TARGET.toLocaleString()} kcal and {PROTEIN_TARGET}g protein every day. Green means you made it.
           </p>
         </div>
-        {streak > 0 && (
-          <div className="page-chips">
-            <span className="chip live">{streak}-day streak</span>
-          </div>
-        )}
+        <div className="page-chips">
+          {streak > 0 && <span className="chip live">{streak}-day streak</span>}
+          <OpponentButton
+            dataKey="foodLogs"
+            renderOpponent={(data, name) => {
+              const foodLogs = (data as Record<string, { checked: string[]; custom: { name: string; kcal: number; protein: number }[] }> | null) || {};
+              const today = new Date().toISOString().slice(0, 10);
+              const todayLog = foodLogs[today];
+              const totals = getDayTotals(todayLog);
+              const isHit = totals.kcal >= KCAL_TARGET && totals.protein >= PROTEIN_TARGET;
+
+              // Count streak
+              let oppStreak = 0;
+              for (let i = 0; i < 365; i++) {
+                const d = new Date();
+                d.setDate(d.getDate() - i);
+                if (hitTargets(foodLogs[dateKey(d)])) oppStreak++;
+                else break;
+              }
+
+              // Last 7 days
+              const days7: { date: string; hit: boolean; kcal: number; protein: number }[] = [];
+              for (let i = 6; i >= 0; i--) {
+                const d = new Date();
+                d.setDate(d.getDate() - i);
+                const dk = dateKey(d);
+                const t = getDayTotals(foodLogs[dk]);
+                days7.push({ date: dk, hit: hitTargets(foodLogs[dk]), kcal: t.kcal, protein: t.protein });
+              }
+
+              return (
+                <div>
+                  <div style={{ fontFamily: "var(--serif)", fontSize: 16, marginBottom: 16 }}>{name}&apos;s food log</div>
+                  <div style={{ display: "flex", gap: 24, marginBottom: 20 }}>
+                    <div>
+                      <div style={{ fontFamily: "var(--mono)", fontSize: 10, color: "var(--muted)" }}>TODAY</div>
+                      <div style={{ fontFamily: "var(--serif)", fontSize: 28, marginTop: 4, color: isHit ? "oklch(0.45 0.15 155)" : "var(--ink)" }}>
+                        {totals.kcal} <span style={{ fontFamily: "var(--mono)", fontSize: 11, color: "var(--muted)" }}>kcal</span>
+                      </div>
+                      <div style={{ fontFamily: "var(--mono)", fontSize: 11, color: "var(--muted)" }}>{totals.protein}g protein</div>
+                    </div>
+                    <div>
+                      <div style={{ fontFamily: "var(--mono)", fontSize: 10, color: "var(--muted)" }}>STREAK</div>
+                      <div style={{ fontFamily: "var(--serif)", fontSize: 28, marginTop: 4 }}>{oppStreak}</div>
+                      <div style={{ fontFamily: "var(--mono)", fontSize: 11, color: "var(--muted)" }}>days</div>
+                    </div>
+                  </div>
+                  <div className="divider-label">Last 7 days</div>
+                  {days7.map((d) => (
+                    <div key={d.date} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 0", borderBottom: "1px solid var(--hairline)" }}>
+                      <div style={{ fontFamily: "var(--serif)", fontSize: 14 }}>
+                        {new Date(d.date + "T00:00:00").toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" })}
+                      </div>
+                      <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
+                        <span style={{ fontFamily: "var(--mono)", fontSize: 11, color: "var(--muted)" }}>{d.kcal} kcal</span>
+                        <span style={{ fontFamily: "var(--mono)", fontSize: 11, color: "var(--muted)" }}>{d.protein}g</span>
+                        <span style={{ width: 8, height: 8, borderRadius: "50%", background: d.hit ? "oklch(0.55 0.2 155)" : "var(--hairline)" }} />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              );
+            }}
+          />
+        </div>
       </div>
 
       <div className="page-body">

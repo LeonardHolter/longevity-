@@ -2,6 +2,7 @@
 
 import React, { useState, useMemo } from "react";
 import { useUserData } from "../lib/useUserData";
+import { OpponentButton } from "./OpponentView";
 
 interface WeightEntry {
   date: string; // ISO date string
@@ -121,6 +122,46 @@ export default function Weight() {
               ? `Gaining ${plan.weeklyGain} kg/week over ${plan.weeks} weeks. Target: ${(plan.startWeight + plan.weeklyGain * plan.weeks).toFixed(1)} kg.`
               : "Set your weekly gain target and duration to start tracking progress."}
           </p>
+        </div>
+        <div className="page-chips">
+          <OpponentButton
+            dataKey="weightEntries"
+            renderOpponent={(data, name) => {
+              const entries = (data as { date: string; w: number }[] | null) || [];
+              if (entries.length === 0) {
+                return <div style={{ color: "var(--muted)", fontFamily: "var(--serif)", fontSize: 16 }}>{name} has no weigh-ins yet.</div>;
+              }
+              const current = entries[entries.length - 1];
+              const first = entries[0];
+              const delta = (current.w - first.w).toFixed(1);
+              return (
+                <div>
+                  <div style={{ fontFamily: "var(--serif)", fontSize: 16, marginBottom: 16 }}>{name}&apos;s weight</div>
+                  <div style={{ display: "flex", gap: 24, marginBottom: 20 }}>
+                    <div>
+                      <div style={{ fontFamily: "var(--mono)", fontSize: 10, color: "var(--muted)" }}>CURRENT</div>
+                      <div style={{ fontFamily: "var(--serif)", fontSize: 28, marginTop: 4 }}>{current.w.toFixed(1)} <span style={{ fontFamily: "var(--mono)", fontSize: 11, color: "var(--muted)" }}>kg</span></div>
+                    </div>
+                    <div>
+                      <div style={{ fontFamily: "var(--mono)", fontSize: 10, color: "var(--muted)" }}>CHANGE</div>
+                      <div style={{ fontFamily: "var(--serif)", fontSize: 28, marginTop: 4 }}>{Number(delta) >= 0 ? "+" : ""}{delta} <span style={{ fontFamily: "var(--mono)", fontSize: 11, color: "var(--muted)" }}>kg</span></div>
+                    </div>
+                    <div>
+                      <div style={{ fontFamily: "var(--mono)", fontSize: 10, color: "var(--muted)" }}>ENTRIES</div>
+                      <div style={{ fontFamily: "var(--serif)", fontSize: 28, marginTop: 4 }}>{entries.length}</div>
+                    </div>
+                  </div>
+                  <div className="divider-label">Recent</div>
+                  {[...entries].reverse().slice(0, 7).map((e, i) => (
+                    <div key={i} style={{ display: "flex", justifyContent: "space-between", padding: "10px 0", borderBottom: "1px solid var(--hairline)" }}>
+                      <div style={{ fontFamily: "var(--serif)", fontSize: 14 }}>{new Date(e.date + "T00:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" })}</div>
+                      <div style={{ fontFamily: "var(--serif)", fontSize: 14 }}>{e.w.toFixed(1)} kg</div>
+                    </div>
+                  ))}
+                </div>
+              );
+            }}
+          />
         </div>
       </div>
 

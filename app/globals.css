@@ -825,6 +825,69 @@ button { font-family: inherit; cursor: pointer; }
 }
 .aging-callout-text strong { color: var(--ink); font-weight: 600; }
 
+/* === Opponent button + drawer === */
+.opponent-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 10px;
+  border-radius: 100px;
+  border: 1px solid var(--hairline-2);
+  background: var(--surface);
+  cursor: pointer;
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+  transition: all 0.12s;
+  white-space: nowrap;
+}
+.opponent-btn:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.opponent-btn-icon { font-size: 12px; }
+.opponent-btn-label { text-transform: uppercase; }
+
+.opponent-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.3);
+  z-index: 200;
+  display: flex;
+  justify-content: flex-end;
+}
+.opponent-drawer {
+  width: min(480px, 90vw);
+  height: 100%;
+  background: var(--bg);
+  border-left: 1px solid var(--hairline);
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  animation: slideIn 0.2s ease-out;
+}
+@keyframes slideIn {
+  from { transform: translateX(100%); }
+  to { transform: translateX(0); }
+}
+.opponent-drawer-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 24px 28px;
+  border-bottom: 1px solid var(--hairline);
+  position: sticky;
+  top: 0;
+  background: var(--bg);
+  z-index: 1;
+}
+.opponent-drawer-body {
+  flex: 1;
+  padding: 20px 28px;
+  overflow-y: auto;
+}
+
 /* misc */
 .divider-label {
   display: flex; align-items: center; gap: 14px;
