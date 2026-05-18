@@ -3,6 +3,7 @@
 import React, { useEffect, useState, useCallback } from "react";
 import { useUser } from "@clerk/nextjs";
 import { DailyChecklistPanel } from "./DailyChecklist";
+import { useWhoopContext } from "../lib/useWhoop";
 
 interface PlayerStats {
   userId: string;
@@ -63,9 +64,15 @@ function getWinner(
 
 export default function Compete({ onNavigate }: { onNavigate: (route: string) => void }) {
   const { user } = useUser();
+  const whoop = useWhoopContext();
   const [players, setPlayers] = useState<PlayerStats[]>([]);
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
+
+  const [stravaConnected, setStravaConnected] = useState(false);
+  useEffect(() => {
+    setStravaConnected(document.cookie.includes("strava_connected=true"));
+  }, []);
 
   const fetchLeaderboard = useCallback(async () => {
     try {
@@ -180,6 +187,89 @@ export default function Compete({ onNavigate }: { onNavigate: (route: string) =>
 
       <div className="page-body">
         <DailyChecklistPanel onNavigate={onNavigate} />
+
+        {/* Connection buttons — always visible, especially useful on mobile */}
+        {(!whoop.connected || !stravaConnected) && (
+          <div className="connect-banner" style={{
+            display: "flex",
+            gap: 8,
+            marginBottom: 24,
+            flexWrap: "wrap",
+          }}>
+            {!whoop.connected && (
+              <button
+                onClick={whoop.connect}
+                className="card"
+                style={{
+                  flex: 1,
+                  minWidth: 140,
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 12,
+                  padding: "14px 18px",
+                  cursor: "pointer",
+                  border: "1px solid var(--hairline-2)",
+                  background: "var(--surface)",
+                  transition: "border-color 0.1s",
+                }}
+              >
+                <span style={{
+                  width: 32,
+                  height: 32,
+                  borderRadius: "50%",
+                  background: "var(--ink)",
+                  color: "var(--surface)",
+                  display: "grid",
+                  placeItems: "center",
+                  fontFamily: "var(--mono)",
+                  fontSize: 10,
+                  fontWeight: 600,
+                  flexShrink: 0,
+                }}>W</span>
+                <div>
+                  <div style={{ fontFamily: "var(--serif)", fontSize: 14 }}>Connect WHOOP</div>
+                  <div style={{ fontFamily: "var(--mono)", fontSize: 10, color: "var(--muted)", marginTop: 2 }}>Sync recovery &amp; strain</div>
+                </div>
+              </button>
+            )}
+            {!stravaConnected && (
+              <button
+                onClick={() => { window.location.href = "/api/strava/auth"; }}
+                className="card"
+                style={{
+                  flex: 1,
+                  minWidth: 140,
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 12,
+                  padding: "14px 18px",
+                  cursor: "pointer",
+                  border: "1px solid var(--hairline-2)",
+                  background: "var(--surface)",
+                  transition: "border-color 0.1s",
+                }}
+              >
+                <span style={{
+                  width: 32,
+                  height: 32,
+                  borderRadius: "50%",
+                  background: "oklch(0.55 0.15 25)",
+                  color: "white",
+                  display: "grid",
+                  placeItems: "center",
+                  fontFamily: "var(--mono)",
+                  fontSize: 10,
+                  fontWeight: 600,
+                  flexShrink: 0,
+                }}>S</span>
+                <div>
+                  <div style={{ fontFamily: "var(--serif)", fontSize: 14 }}>Connect Strava</div>
+                  <div style={{ fontFamily: "var(--mono)", fontSize: 10, color: "var(--muted)", marginTop: 2 }}>Auto-import runs &amp; HIIT</div>
+                </div>
+              </button>
+            )}
+          </div>
+        )}
 
         {players.length < 2 ? (
           <div className="card" style={{ padding: 40, textAlign: "center" }}>
