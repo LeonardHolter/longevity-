@@ -23,7 +23,11 @@ export async function GET(request: NextRequest) {
     result[key] = meta[key] ?? null;
   }
 
-  return NextResponse.json(result);
+  return NextResponse.json(result, {
+    headers: {
+      "Cache-Control": "no-store, no-cache, must-revalidate",
+    },
+  });
 }
 
 /**
@@ -37,7 +41,13 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
 
-  const body = await request.json();
+  let body;
+  try {
+    body = await request.json();
+  } catch {
+    return NextResponse.json({ error: "invalid json" }, { status: 400 });
+  }
+
   const { key, value } = body;
 
   if (!key || typeof key !== "string") {
