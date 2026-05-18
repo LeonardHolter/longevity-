@@ -38,7 +38,6 @@ const WEEK: Day[] = [
       { name: "Leg press", scheme: "4 × 8–12" },
       { name: "Leg extension", scheme: "3 × 12–15" },
       { name: "Seated leg curl", scheme: "4 × 8–12" },
-      { name: "Back extension machine", scheme: "3 × 10–12" },
 { name: "Calf raise", scheme: "4 × 10–15" },
     ],
     notes: "Machines only. Plate to chest on back extensions.",
