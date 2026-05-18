@@ -1,326 +1,520 @@
 "use client";
 
-import React, { useState, useRef, useCallback } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 
-interface MealItem {
+/* ── types ── */
+interface FoodItem {
+  id: string;
   name: string;
   measurement: string;
+  kcal: number;
+  protein: number;
+  meal: string;
 }
 
-interface Meal {
-  kind: string;
-  summary: string;
-  kcal: string;
-  protein: string;
-  items: MealItem[];
-  prepNote?: string;
+interface DayLog {
+  checked: string[]; // ids of checked template items
+  custom: { name: string; kcal: number; protein: number }[];
 }
 
-const MEALS: Meal[] = [
-  {
-    kind: "Breakfast",
-    summary: "Eggs + smoothie",
-    kcal: "~1,150",
-    protein: "80 g",
-    items: [
-      { name: "Eggs, scrambled", measurement: "5 eggs" },
-      { name: "Grovbrød", measurement: "3 slices" },
-      { name: "Peanut butter on the bread", measurement: "2 tbsp" },
-      { name: "Whey scoop", measurement: "1 scoop" },
-      { name: "Banana", measurement: "1" },
-      { name: "Milk into the smoothie", measurement: "3 dl" },
-    ],
-  },
-  {
-    kind: "Lunch",
-    summary: "Batch-cooked kjøttdeig + ris",
-    kcal: "~750",
-    protein: "55 g",
-    prepNote: "Sunday prep — makes 2 portions",
-    items: [
-      { name: "Kjøttdeig (10% fat)", measurement: "1 pack (400–500 g)" },
-      { name: "Tacokrydder", measurement: "1 packet" },
-      { name: "Rice, uncooked", measurement: "2 dl" },
-      { name: "Paprika", measurement: "2" },
-      { name: "Onion", measurement: "1" },
-      { name: "Tomato", measurement: "1" },
-      { name: "Olive oil for cooking", measurement: "1 tbsp" },
-    ],
-  },
+/* ── meal templates with macros ── */
+const TEMPLATE_ITEMS: FoodItem[] = [
+  // Breakfast — eggs + smoothie (~1,150 kcal, 80g protein)
+  { id: "b1", meal: "Breakfast", name: "Eggs, scrambled",           measurement: "5 eggs",    kcal: 390, protein: 30 },
+  { id: "b2", meal: "Breakfast", name: "Grovbrød",                  measurement: "3 slices",  kcal: 330, protein: 12 },
+  { id: "b3", meal: "Breakfast", name: "Peanut butter on the bread",measurement: "2 tbsp",    kcal: 190, protein: 8 },
+  { id: "b4", meal: "Breakfast", name: "Whey scoop",                measurement: "1 scoop",   kcal: 120, protein: 24 },
+  { id: "b5", meal: "Breakfast", name: "Banana",                    measurement: "1",         kcal: 105, protein: 1 },
+  { id: "b6", meal: "Breakfast", name: "Milk into the smoothie",    measurement: "3 dl",      kcal: 150, protein: 10 },
+  // Lunch — kjøttdeig + ris (~750 kcal, 55g protein per portion)
+  { id: "l1", meal: "Lunch", name: "Kjøttdeig (10% fat)",   measurement: "½ pack (~200 g)", kcal: 340, protein: 36 },
+  { id: "l2", meal: "Lunch", name: "Tacokrydder",           measurement: "½ packet",        kcal: 15,  protein: 0 },
+  { id: "l3", meal: "Lunch", name: "Rice, cooked",          measurement: "1 dl uncooked",   kcal: 260, protein: 5 },
+  { id: "l4", meal: "Lunch", name: "Paprika",               measurement: "1",               kcal: 30,  protein: 1 },
+  { id: "l5", meal: "Lunch", name: "Onion",                 measurement: "½",               kcal: 20,  protein: 0 },
+  { id: "l6", meal: "Lunch", name: "Tomato",                measurement: "½",               kcal: 10,  protein: 0 },
+  { id: "l7", meal: "Lunch", name: "Olive oil",             measurement: "½ tbsp",          kcal: 60,  protein: 0 },
 ];
 
-function MealPlanCard({ meal }: { meal: Meal }) {
-  const [checkedItems, setCheckedItems] = useState<boolean[]>(
-    new Array(meal.items.length).fill(false)
-  );
+const KCAL_TARGET = 3000;
+const PROTEIN_TARGET = 130;
+const STORAGE_KEY = "helix-food-log";
 
-  const toggle = (idx: number) => {
-    const next = [...checkedItems];
-    next[idx] = !next[idx];
-    setCheckedItems(next);
-  };
-
-  const done = checkedItems.filter(Boolean).length;
-  const total = meal.items.length;
-
-  return (
-    <div className="card" style={{ padding: 0, overflow: "hidden" }}>
-      <div style={{
-        padding: "24px 28px 16px",
-        borderBottom: "1px solid var(--hairline)",
-      }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
-          <div>
-            <div style={{
-              fontFamily: "var(--mono)",
-              fontSize: 10,
-              letterSpacing: "0.14em",
-              color: "var(--muted)",
-              marginBottom: 6,
-            }}>
-              {meal.kind.toUpperCase()}
-            </div>
-            <div style={{ fontFamily: "var(--serif)", fontSize: 24 }}>
-              {meal.summary}
-            </div>
-          </div>
-          <div style={{ textAlign: "right" }}>
-            <div style={{ fontFamily: "var(--serif)", fontSize: 22, color: "var(--accent)" }}>
-              {meal.kcal}
-              <span style={{ fontFamily: "var(--mono)", fontSize: 11, color: "var(--muted)", marginLeft: 4 }}>kcal</span>
-            </div>
-            <div style={{ fontFamily: "var(--mono)", fontSize: 11, color: "var(--muted)", marginTop: 2 }}>
-              {meal.protein} protein
-            </div>
-          </div>
-        </div>
-        {meal.prepNote && (
-          <div style={{
-            fontFamily: "var(--mono)",
-            fontSize: 11,
-            color: "var(--muted)",
-            fontStyle: "italic",
-            marginTop: 8,
-          }}>
-            {meal.prepNote}
-          </div>
-        )}
-      </div>
-
-      <div>
-        {meal.items.map((item, i) => (
-          <div
-            key={i}
-            onClick={() => toggle(i)}
-            style={{
-              display: "grid",
-              gridTemplateColumns: "32px 1fr auto",
-              alignItems: "center",
-              padding: "14px 28px",
-              borderBottom: i < meal.items.length - 1 ? "1px solid var(--hairline)" : "none",
-              cursor: "pointer",
-              opacity: checkedItems[i] ? 0.5 : 1,
-              transition: "opacity 0.15s",
-            }}
-          >
-            <div style={{
-              width: 20,
-              height: 20,
-              borderRadius: 4,
-              border: checkedItems[i] ? "none" : "1.5px solid var(--faint)",
-              background: checkedItems[i] ? "var(--accent)" : "transparent",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              fontSize: 12,
-              color: "var(--bg)",
-              transition: "all 0.15s",
-            }}>
-              {checkedItems[i] && "✓"}
-            </div>
-            <div style={{
-              fontFamily: "var(--serif)",
-              fontSize: 15,
-              textDecoration: checkedItems[i] ? "line-through" : "none",
-            }}>
-              {item.name}
-            </div>
-            <div style={{
-              fontFamily: "var(--mono)",
-              fontSize: 12,
-              color: "var(--muted)",
-            }}>
-              {item.measurement}
-            </div>
-          </div>
-        ))}
-      </div>
-
-      <div style={{
-        padding: "14px 28px",
-        borderTop: "1px solid var(--hairline)",
-        display: "flex",
-        justifyContent: "space-between",
-        alignItems: "center",
-      }}>
-        <div style={{ fontFamily: "var(--mono)", fontSize: 10, color: "var(--muted)" }}>
-          {done} / {total} items
-        </div>
-        <div style={{
-          fontFamily: "var(--mono)",
-          fontSize: 10,
-          letterSpacing: "0.1em",
-          color: done === total ? "var(--accent)" : "var(--muted)",
-        }}>
-          {done === total ? "COMPLETE" : "IN PROGRESS"}
-        </div>
-      </div>
-    </div>
-  );
+function todayKey() {
+  return new Date().toISOString().slice(0, 10);
 }
 
-function MealPhotoCard({ kind }: { kind: string }) {
-  const [photoUrl, setPhotoUrl] = useState<string | null>(null);
-  const [note, setNote] = useState("");
-  const fileRef = useRef<HTMLInputElement>(null);
-  const [dragOver, setDragOver] = useState(false);
-
-  const handleFile = useCallback((file: File) => {
-    if (!file.type.startsWith("image/")) return;
-    const reader = new FileReader();
-    reader.onload = (e) => setPhotoUrl(e.target?.result as string);
-    reader.readAsDataURL(file);
-  }, []);
-
-  return (
-    <div className="card" style={{ padding: 0, overflow: "hidden" }}>
-      <div
-        style={{
-          height: 180,
-          background: "var(--surface-2)",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          cursor: "pointer",
-          position: "relative",
-          outline: dragOver ? "2px solid var(--accent)" : undefined,
-          outlineOffset: dragOver ? -2 : undefined,
-        }}
-        onClick={() => fileRef.current?.click()}
-        onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
-        onDragLeave={() => setDragOver(false)}
-        onDrop={(e) => {
-          e.preventDefault();
-          setDragOver(false);
-          const f = e.dataTransfer.files?.[0];
-          if (f) handleFile(f);
-        }}
-      >
-        {photoUrl ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={photoUrl} alt={kind} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-        ) : (
-          <span style={{ fontFamily: "var(--mono)", fontSize: 11, color: "var(--muted)" }}>
-            Drop {kind.toLowerCase()} photo
-          </span>
-        )}
-        <input
-          ref={fileRef}
-          type="file"
-          accept="image/*"
-          hidden
-          onChange={(e) => {
-            const f = e.target.files?.[0];
-            if (f) handleFile(f);
-            e.target.value = "";
-          }}
-        />
-      </div>
-      <div style={{ padding: "16px 24px" }}>
-        <textarea
-          style={{
-            width: "100%",
-            border: "none",
-            background: "transparent",
-            fontFamily: "var(--serif)",
-            fontSize: 14,
-            color: "var(--ink)",
-            resize: "none",
-            outline: "none",
-          }}
-          placeholder={`Notes about ${kind.toLowerCase()}...`}
-          value={note}
-          onChange={(e) => setNote(e.target.value)}
-          rows={2}
-        />
-      </div>
-    </div>
-  );
+function dateKey(d: Date) {
+  return d.toISOString().slice(0, 10);
 }
+
+function loadAllLogs(): Record<string, DayLog> {
+  if (typeof window === "undefined") return {};
+  try {
+    return JSON.parse(localStorage.getItem(STORAGE_KEY) || "{}");
+  } catch {
+    return {};
+  }
+}
+
+function saveAllLogs(logs: Record<string, DayLog>) {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(logs));
+}
+
+function getDayTotals(log: DayLog | undefined) {
+  let kcal = 0;
+  let protein = 0;
+  if (!log) return { kcal, protein };
+  for (const id of log.checked) {
+    const item = TEMPLATE_ITEMS.find((t) => t.id === id);
+    if (item) {
+      kcal += item.kcal;
+      protein += item.protein;
+    }
+  }
+  for (const c of log.custom) {
+    kcal += c.kcal;
+    protein += c.protein;
+  }
+  return { kcal, protein };
+}
+
+function hitTargets(log: DayLog | undefined) {
+  const t = getDayTotals(log);
+  return t.kcal >= KCAL_TARGET && t.protein >= PROTEIN_TARGET;
+}
+
+/* ── components ── */
 
 export default function Food() {
-  const totalKcal = "~1,900";
-  const totalProtein = "135 g";
+  const [logs, setLogs] = useState<Record<string, DayLog>>({});
+  const [selectedDate, setSelectedDate] = useState(todayKey());
+  const [customDraft, setCustomDraft] = useState({ name: "", kcal: "", protein: "" });
+  const [loaded, setLoaded] = useState(false);
+
+  useEffect(() => {
+    setLogs(loadAllLogs());
+    setLoaded(true);
+  }, []);
+
+  const persist = useCallback((next: Record<string, DayLog>) => {
+    setLogs(next);
+    saveAllLogs(next);
+  }, []);
+
+  const currentLog: DayLog = logs[selectedDate] || { checked: [], custom: [] };
+  const totals = getDayTotals(currentLog);
+  const isHit = totals.kcal >= KCAL_TARGET && totals.protein >= PROTEIN_TARGET;
+
+  const toggleItem = (id: string) => {
+    const log = { ...currentLog };
+    if (log.checked.includes(id)) {
+      log.checked = log.checked.filter((x) => x !== id);
+    } else {
+      log.checked = [...log.checked, id];
+    }
+    persist({ ...logs, [selectedDate]: log });
+  };
+
+  const addCustom = (e: React.FormEvent) => {
+    e.preventDefault();
+    const kcal = parseInt(customDraft.kcal);
+    const protein = parseInt(customDraft.protein);
+    if (!customDraft.name || isNaN(kcal)) return;
+    const log = { ...currentLog };
+    log.custom = [...log.custom, { name: customDraft.name, kcal, protein: isNaN(protein) ? 0 : protein }];
+    persist({ ...logs, [selectedDate]: log });
+    setCustomDraft({ name: "", kcal: "", protein: "" });
+  };
+
+  const removeCustom = (idx: number) => {
+    const log = { ...currentLog };
+    log.custom = log.custom.filter((_, i) => i !== idx);
+    persist({ ...logs, [selectedDate]: log });
+  };
+
+  // Last 14 days for the day strip
+  const days: Date[] = [];
+  for (let i = 13; i >= 0; i--) {
+    const d = new Date();
+    d.setDate(d.getDate() - i);
+    days.push(d);
+  }
+
+  const meals = ["Breakfast", "Lunch"];
+
+  if (!loaded) {
+    return (
+      <div style={{
+        display: "flex", alignItems: "center", justifyContent: "center",
+        height: 400, fontFamily: "var(--serif)", fontSize: 18, color: "var(--muted)",
+      }}>
+        Loading...
+      </div>
+    );
+  }
+
+  // Count streak
+  let streak = 0;
+  for (let i = 0; i < 365; i++) {
+    const d = new Date();
+    d.setDate(d.getDate() - i);
+    if (hitTargets(logs[dateKey(d)])) streak++;
+    else break;
+  }
 
   return (
     <div>
       <div className="page-head">
         <div>
           <div className="page-eyebrow">
-            Nutrition · breakfast · lunch
+            Nutrition · daily tracker
           </div>
           <h1 className="page-title">
             What you <em>fed</em> the system
           </h1>
           <p className="page-sub">
-            Two meals a day. {totalKcal} kcal, {totalProtein} protein. Simple, repeatable, no decisions.
+            Hit {KCAL_TARGET.toLocaleString()} kcal and {PROTEIN_TARGET}g protein every day. Green means you made it.
           </p>
         </div>
+        {streak > 0 && (
+          <div className="page-chips">
+            <span className="chip live">{streak}-day streak</span>
+          </div>
+        )}
       </div>
 
       <div className="page-body">
-        {/* Daily totals */}
+        {/* Day strip */}
         <div style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))",
-          gap: 2,
-          marginBottom: 24,
+          display: "flex", gap: 4, marginBottom: 24, overflowX: "auto",
         }}>
-          <div className="card" style={{ padding: "20px 24px", textAlign: "center" }}>
-            <div style={{ fontFamily: "var(--mono)", fontSize: 10, color: "var(--muted)", letterSpacing: "0.14em" }}>DAILY TOTAL</div>
-            <div style={{ fontFamily: "var(--serif)", fontSize: 28, marginTop: 6 }}>{totalKcal}</div>
-            <div style={{ fontFamily: "var(--mono)", fontSize: 10, color: "var(--muted)", marginTop: 2 }}>kcal</div>
+          {days.map((d) => {
+            const key = dateKey(d);
+            const isSelected = key === selectedDate;
+            const dayHit = hitTargets(logs[key]);
+            const dayLog = logs[key];
+            const hasEntries = dayLog && (dayLog.checked.length > 0 || dayLog.custom.length > 0);
+
+            return (
+              <button
+                key={key}
+                onClick={() => setSelectedDate(key)}
+                style={{
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "center",
+                  gap: 4,
+                  padding: "10px 12px",
+                  borderRadius: 10,
+                  border: isSelected ? "1.5px solid var(--accent)" : "1.5px solid transparent",
+                  background: dayHit ? "oklch(0.45 0.15 155 / 0.15)" : isSelected ? "var(--surface-2)" : "transparent",
+                  cursor: "pointer",
+                  minWidth: 52,
+                  transition: "all 0.15s",
+                }}
+              >
+                <div style={{
+                  fontFamily: "var(--mono)",
+                  fontSize: 9,
+                  letterSpacing: "0.1em",
+                  color: dayHit ? "oklch(0.45 0.15 155)" : "var(--muted)",
+                }}>
+                  {d.toLocaleDateString("en-US", { weekday: "short" }).toUpperCase()}
+                </div>
+                <div style={{
+                  fontFamily: "var(--serif)",
+                  fontSize: 18,
+                  color: dayHit ? "oklch(0.45 0.15 155)" : "var(--ink)",
+                  fontWeight: dayHit ? 600 : 400,
+                }}>
+                  {d.getDate()}
+                </div>
+                <div style={{
+                  width: 8,
+                  height: 8,
+                  borderRadius: "50%",
+                  background: dayHit
+                    ? "oklch(0.55 0.2 155)"
+                    : hasEntries
+                      ? "var(--faint)"
+                      : "transparent",
+                  border: !dayHit && !hasEntries ? "1px solid var(--hairline)" : "none",
+                }} />
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Today's progress bar */}
+        <div className="card" style={{ padding: "20px 28px", marginBottom: 20 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+            <div style={{ fontFamily: "var(--serif)", fontSize: 20 }}>
+              {new Date(selectedDate + "T00:00:00").toLocaleDateString("en-US", {
+                weekday: "long", month: "long", day: "numeric",
+              })}
+            </div>
+            {isHit && (
+              <div style={{
+                fontFamily: "var(--mono)", fontSize: 10, letterSpacing: "0.14em",
+                color: "oklch(0.45 0.15 155)", fontWeight: 600,
+              }}>
+                ✓ TARGETS HIT
+              </div>
+            )}
           </div>
-          <div className="card" style={{ padding: "20px 24px", textAlign: "center" }}>
-            <div style={{ fontFamily: "var(--mono)", fontSize: 10, color: "var(--muted)", letterSpacing: "0.14em" }}>PROTEIN</div>
-            <div style={{ fontFamily: "var(--serif)", fontSize: 28, marginTop: 6 }}>{totalProtein}</div>
-            <div style={{ fontFamily: "var(--mono)", fontSize: 10, color: "var(--muted)", marginTop: 2 }}>per day</div>
-          </div>
-          <div className="card" style={{ padding: "20px 24px", textAlign: "center" }}>
-            <div style={{ fontFamily: "var(--mono)", fontSize: 10, color: "var(--muted)", letterSpacing: "0.14em" }}>MEALS</div>
-            <div style={{ fontFamily: "var(--serif)", fontSize: 28, marginTop: 6 }}>2</div>
-            <div style={{ fontFamily: "var(--mono)", fontSize: 10, color: "var(--muted)", marginTop: 2 }}>per day</div>
-          </div>
-          <div className="card" style={{ padding: "20px 24px", textAlign: "center" }}>
-            <div style={{ fontFamily: "var(--mono)", fontSize: 10, color: "var(--muted)", letterSpacing: "0.14em" }}>PREP</div>
-            <div style={{ fontFamily: "var(--serif)", fontSize: 28, marginTop: 6 }}>Sun</div>
-            <div style={{ fontFamily: "var(--mono)", fontSize: 10, color: "var(--muted)", marginTop: 2 }}>batch cook</div>
+
+          <div className="food-progress-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
+            {/* Kcal bar */}
+            <div>
+              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
+                <span style={{ fontFamily: "var(--mono)", fontSize: 10, color: "var(--muted)" }}>CALORIES</span>
+                <span style={{
+                  fontFamily: "var(--mono)", fontSize: 11,
+                  color: totals.kcal >= KCAL_TARGET ? "oklch(0.45 0.15 155)" : "var(--ink)",
+                }}>
+                  {totals.kcal.toLocaleString()} / {KCAL_TARGET.toLocaleString()}
+                </span>
+              </div>
+              <div style={{
+                height: 8, borderRadius: 4, background: "var(--surface-2)", overflow: "hidden",
+              }}>
+                <div style={{
+                  height: "100%",
+                  width: `${Math.min(100, (totals.kcal / KCAL_TARGET) * 100)}%`,
+                  borderRadius: 4,
+                  background: totals.kcal >= KCAL_TARGET ? "oklch(0.55 0.2 155)" : "var(--accent)",
+                  transition: "width 0.3s",
+                }} />
+              </div>
+            </div>
+            {/* Protein bar */}
+            <div>
+              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
+                <span style={{ fontFamily: "var(--mono)", fontSize: 10, color: "var(--muted)" }}>PROTEIN</span>
+                <span style={{
+                  fontFamily: "var(--mono)", fontSize: 11,
+                  color: totals.protein >= PROTEIN_TARGET ? "oklch(0.45 0.15 155)" : "var(--ink)",
+                }}>
+                  {totals.protein}g / {PROTEIN_TARGET}g
+                </span>
+              </div>
+              <div style={{
+                height: 8, borderRadius: 4, background: "var(--surface-2)", overflow: "hidden",
+              }}>
+                <div style={{
+                  height: "100%",
+                  width: `${Math.min(100, (totals.protein / PROTEIN_TARGET) * 100)}%`,
+                  borderRadius: 4,
+                  background: totals.protein >= PROTEIN_TARGET ? "oklch(0.55 0.2 155)" : "var(--accent)",
+                  transition: "width 0.3s",
+                }} />
+              </div>
+            </div>
           </div>
         </div>
 
-        {/* Meal plans */}
-        <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
-          {MEALS.map((meal) => (
-            <MealPlanCard key={meal.kind} meal={meal} />
+        {/* Meal checklists */}
+        {meals.map((mealName) => {
+          const items = TEMPLATE_ITEMS.filter((t) => t.meal === mealName);
+          const mealKcal = items.reduce((s, t) => s + t.kcal, 0);
+          const mealProtein = items.reduce((s, t) => s + t.protein, 0);
+          const checkedKcal = items
+            .filter((t) => currentLog.checked.includes(t.id))
+            .reduce((s, t) => s + t.kcal, 0);
+          const checkedProtein = items
+            .filter((t) => currentLog.checked.includes(t.id))
+            .reduce((s, t) => s + t.protein, 0);
+          const allChecked = items.every((t) => currentLog.checked.includes(t.id));
+
+          return (
+            <div key={mealName} className="card" style={{ padding: 0, overflow: "hidden", marginBottom: 12 }}>
+              <div style={{
+                padding: "20px 28px 14px",
+                borderBottom: "1px solid var(--hairline)",
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+              }}>
+                <div>
+                  <div style={{
+                    fontFamily: "var(--mono)", fontSize: 10, letterSpacing: "0.14em",
+                    color: allChecked ? "oklch(0.45 0.15 155)" : "var(--muted)",
+                  }}>
+                    {mealName.toUpperCase()} {allChecked && "✓"}
+                  </div>
+                  <div style={{ fontFamily: "var(--serif)", fontSize: 20, marginTop: 4 }}>
+                    {mealName === "Breakfast" ? "Eggs + smoothie" : "Kjøttdeig + ris"}
+                  </div>
+                </div>
+                <div style={{ textAlign: "right" }}>
+                  <div style={{
+                    fontFamily: "var(--mono)", fontSize: 12,
+                    color: allChecked ? "oklch(0.45 0.15 155)" : "var(--ink)",
+                  }}>
+                    {checkedKcal} / {mealKcal} kcal
+                  </div>
+                  <div style={{ fontFamily: "var(--mono)", fontSize: 11, color: "var(--muted)", marginTop: 2 }}>
+                    {checkedProtein}g / {mealProtein}g protein
+                  </div>
+                </div>
+              </div>
+
+              {items.map((item) => {
+                const checked = currentLog.checked.includes(item.id);
+                return (
+                  <div
+                    key={item.id}
+                    className="food-item-row"
+                    onClick={() => toggleItem(item.id)}
+                    style={{
+                      display: "grid",
+                      gridTemplateColumns: "32px 1fr auto auto",
+                      alignItems: "center",
+                      gap: 12,
+                      padding: "12px 28px",
+                      borderBottom: "1px solid var(--hairline)",
+                      cursor: "pointer",
+                      opacity: checked ? 0.5 : 1,
+                      transition: "opacity 0.15s",
+                    }}
+                  >
+                    <div style={{
+                      width: 20, height: 20, borderRadius: 4,
+                      border: checked ? "none" : "1.5px solid var(--faint)",
+                      background: checked ? "oklch(0.55 0.2 155)" : "transparent",
+                      display: "flex", alignItems: "center", justifyContent: "center",
+                      fontSize: 12, color: "var(--bg)", transition: "all 0.15s",
+                    }}>
+                      {checked && "✓"}
+                    </div>
+                    <div style={{
+                      fontFamily: "var(--serif)", fontSize: 15,
+                      textDecoration: checked ? "line-through" : "none",
+                    }}>
+                      {item.name}
+                    </div>
+                    <div className="food-item-measure" style={{ fontFamily: "var(--mono)", fontSize: 11, color: "var(--muted)" }}>
+                      {item.measurement}
+                    </div>
+                    <div className="food-item-macro" style={{
+                      fontFamily: "var(--mono)", fontSize: 10, color: "var(--muted)",
+                      minWidth: 80, textAlign: "right",
+                    }}>
+                      {item.kcal} kcal · {item.protein}g
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          );
+        })}
+
+        {/* Custom food */}
+        <div className="card" style={{ padding: 0, overflow: "hidden", marginBottom: 12 }}>
+          <div style={{
+            padding: "20px 28px 14px",
+            borderBottom: "1px solid var(--hairline)",
+          }}>
+            <div style={{
+              fontFamily: "var(--mono)", fontSize: 10, letterSpacing: "0.14em", color: "var(--muted)",
+            }}>
+              EXTRA FOOD
+            </div>
+            <div style={{ fontFamily: "var(--serif)", fontSize: 20, marginTop: 4 }}>
+              Anything else you ate
+            </div>
+          </div>
+
+          {currentLog.custom.map((c, i) => (
+            <div
+              key={i}
+              style={{
+                display: "grid",
+                gridTemplateColumns: "1fr auto auto",
+                alignItems: "center",
+                gap: 12,
+                padding: "12px 28px",
+                borderBottom: "1px solid var(--hairline)",
+              }}
+            >
+              <div style={{ fontFamily: "var(--serif)", fontSize: 15 }}>{c.name}</div>
+              <div style={{ fontFamily: "var(--mono)", fontSize: 10, color: "var(--muted)" }}>
+                {c.kcal} kcal · {c.protein}g
+              </div>
+              <button
+                onClick={() => removeCustom(i)}
+                style={{
+                  background: "none", border: "none", cursor: "pointer",
+                  fontFamily: "var(--mono)", fontSize: 14, color: "var(--muted)",
+                  padding: "0 4px",
+                }}
+              >
+                ×
+              </button>
+            </div>
           ))}
+
+          <form onSubmit={addCustom} className="food-custom-form" style={{
+            display: "flex", gap: 8, padding: "14px 28px", alignItems: "center",
+          }}>
+            <input
+              value={customDraft.name}
+              onChange={(e) => setCustomDraft({ ...customDraft, name: e.target.value })}
+              placeholder="Food item"
+              className="log-input"
+              style={{ flex: 1 }}
+            />
+            <input
+              value={customDraft.kcal}
+              onChange={(e) => setCustomDraft({ ...customDraft, kcal: e.target.value })}
+              placeholder="kcal"
+              inputMode="numeric"
+              className="log-input"
+              style={{ width: 70 }}
+            />
+            <input
+              value={customDraft.protein}
+              onChange={(e) => setCustomDraft({ ...customDraft, protein: e.target.value })}
+              placeholder="prot (g)"
+              inputMode="numeric"
+              className="log-input"
+              style={{ width: 70 }}
+            />
+            <button type="submit" className="btn accent">+</button>
+          </form>
         </div>
 
-        {/* Photo log */}
-        <div className="divider-label">Today&apos;s photo log</div>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-          <MealPhotoCard kind="Breakfast" />
-          <MealPhotoCard kind="Lunch" />
-        </div>
+        {/* Remaining to hit targets */}
+        {!isHit && (totals.kcal > 0 || totals.protein > 0) && (
+          <div className="card" style={{
+            padding: "20px 28px",
+            marginBottom: 12,
+            borderLeft: "3px solid var(--accent)",
+          }}>
+            <div style={{ fontFamily: "var(--mono)", fontSize: 10, letterSpacing: "0.14em", color: "var(--muted)", marginBottom: 8 }}>
+              STILL NEED TODAY
+            </div>
+            <div style={{ display: "flex", gap: 32 }}>
+              {totals.kcal < KCAL_TARGET && (
+                <div>
+                  <span style={{ fontFamily: "var(--serif)", fontSize: 24 }}>
+                    {(KCAL_TARGET - totals.kcal).toLocaleString()}
+                  </span>
+                  <span style={{ fontFamily: "var(--mono)", fontSize: 11, color: "var(--muted)", marginLeft: 6 }}>kcal</span>
+                </div>
+              )}
+              {totals.protein < PROTEIN_TARGET && (
+                <div>
+                  <span style={{ fontFamily: "var(--serif)", fontSize: 24 }}>
+                    {PROTEIN_TARGET - totals.protein}
+                  </span>
+                  <span style={{ fontFamily: "var(--mono)", fontSize: 11, color: "var(--muted)", marginLeft: 6 }}>g protein</span>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

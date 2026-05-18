@@ -13,6 +13,12 @@ export const metadata: Metadata = {
   description: "Healthspan dashboard — sleep, VO₂ max, strength, weight, nutrition",
 };
 
+export const viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
+};
+
 export default function RootLayout({
   children,
 }: Readonly<{

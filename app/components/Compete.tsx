@@ -216,14 +216,14 @@ export default function Compete() {
           <>
             {/* SCOREBOARD */}
             <div className="hero" style={{ marginBottom: 0 }}>
-              <div style={{
+              <div className="compete-scoreboard" style={{
                 display: "grid",
                 gridTemplateColumns: "1fr auto 1fr",
                 alignItems: "center",
                 gap: 32,
               }}>
                 <div style={{ textAlign: "center" }}>
-                  <div style={{
+                  <div className="compete-avatar" style={{
                     width: 64,
                     height: 64,
                     borderRadius: "50%",
@@ -241,14 +241,14 @@ export default function Compete() {
                       <img src={me.imageUrl} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
                     ) : me.name[0]}
                   </div>
-                  <div style={{ fontFamily: "var(--serif)", fontSize: 18 }}>{me.name}</div>
+                  <div className="compete-player-name" style={{ fontFamily: "var(--serif)", fontSize: 18 }}>{me.name}</div>
                   <div style={{ fontFamily: "var(--mono)", fontSize: 10, color: "var(--muted)", marginTop: 4 }}>
                     {me.updatedAt ? timeAgo(me.updatedAt) : "—"}
                   </div>
                 </div>
 
                 <div style={{ textAlign: "center" }}>
-                  <div style={{
+                  <div className="compete-score-num" style={{
                     fontFamily: "var(--serif)",
                     fontSize: 48,
                     letterSpacing: "-0.03em",
@@ -273,7 +273,7 @@ export default function Compete() {
                 </div>
 
                 <div style={{ textAlign: "center" }}>
-                  <div style={{
+                  <div className="compete-avatar" style={{
                     width: 64,
                     height: 64,
                     borderRadius: "50%",
@@ -291,7 +291,7 @@ export default function Compete() {
                       <img src={opponent.imageUrl} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
                     ) : opponent.name[0]}
                   </div>
-                  <div style={{ fontFamily: "var(--serif)", fontSize: 18 }}>{opponent.name}</div>
+                  <div className="compete-player-name" style={{ fontFamily: "var(--serif)", fontSize: 18 }}>{opponent.name}</div>
                   <div style={{ fontFamily: "var(--mono)", fontSize: 10, color: "var(--muted)", marginTop: 4 }}>
                     {opponent.updatedAt ? timeAgo(opponent.updatedAt) : "—"}
                   </div>
@@ -312,7 +312,7 @@ export default function Compete() {
                 return (
                   <div
                     key={m.key}
-                    className="card"
+                    className="card compete-metric-row"
                     style={{
                       display: "grid",
                       gridTemplateColumns: "1fr 200px 1fr",
@@ -322,7 +322,7 @@ export default function Compete() {
                     }}
                   >
                     <div style={{ textAlign: "left" }}>
-                      <div style={{
+                      <div className="compete-metric-val" style={{
                         fontFamily: "var(--serif)",
                         fontSize: 32,
                         letterSpacing: "-0.02em",
@@ -376,7 +376,7 @@ export default function Compete() {
                     </div>
 
                     <div style={{ textAlign: "right" }}>
-                      <div style={{
+                      <div className="compete-metric-val" style={{
                         fontFamily: "var(--serif)",
                         fontSize: 32,
                         letterSpacing: "-0.02em",
@@ -405,7 +405,7 @@ export default function Compete() {
 
             {/* 7-DAY AVERAGES */}
             <div className="divider-label">7-day averages</div>
-            <div className="dash-grid">
+            <div className="dash-grid compete-avg-grid">
               {METRICS.filter((m) => m.avg).map((m) => {
                 const myAvg = me[m.avg!] as number | null;
                 const oppAvg = opponent[m.avg!] as number | null;

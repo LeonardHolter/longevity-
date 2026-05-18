@@ -1090,3 +1090,380 @@ button { font-family: inherit; cursor: pointer; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: var(--hairline-2); border-radius: 100px; }
 ::-webkit-scrollbar-thumb:hover { background: var(--muted); }
+
+/* ============================
+   MOBILE / RESPONSIVE
+   ============================ */
+
+@media (max-width: 768px) {
+  /* Shell: sidebar becomes bottom nav */
+  .shell {
+    grid-template-columns: 1fr;
+    grid-template-rows: 1fr auto;
+  }
+
+  .sidebar {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    top: auto;
+    height: auto;
+    border-right: none;
+    border-top: 1px solid var(--hairline);
+    padding: 0;
+    flex-direction: row;
+    gap: 0;
+    z-index: 100;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .brand { display: none; }
+  .account { display: none; }
+  .nav-section { display: none; }
+
+  .nav {
+    flex-direction: row;
+    gap: 0;
+    width: 100%;
+    padding: 6px 8px;
+    overflow-x: auto;
+  }
+
+  .nav-item {
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    padding: 8px 10px;
+    font-size: 10px;
+    min-width: 0;
+    flex-shrink: 0;
+    border-radius: 8px;
+    text-align: center;
+    white-space: nowrap;
+  }
+
+  .nav-item .num { display: none; }
+
+  .main {
+    padding-bottom: 72px; /* space for bottom nav */
+  }
+
+  /* Page chrome */
+  .page-head {
+    padding: 20px 16px 16px;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+
+  .page-title {
+    font-size: 28px;
+  }
+
+  .page-sub {
+    font-size: 13px;
+  }
+
+  .page-eyebrow {
+    font-size: 9px;
+    margin-bottom: 8px;
+  }
+
+  .page-chips {
+    flex-wrap: wrap;
+  }
+
+  .page-body {
+    padding: 16px 16px 40px;
+  }
+
+  /* Dashboard grid */
+  .dash-grid {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  .span-3, .span-4, .span-5, .span-6,
+  .span-7, .span-8, .span-12 {
+    grid-column: span 1;
+  }
+
+  /* Hero */
+  .hero {
+    padding: 20px;
+  }
+
+  .hero-grid {
+    grid-template-columns: 1fr;
+    gap: 20px;
+  }
+
+  .hero-big {
+    font-size: 72px;
+  }
+
+  .hero-big sup {
+    font-size: 16px;
+    vertical-align: 20px;
+  }
+
+  /* KPI */
+  .kpi {
+    min-height: auto;
+    padding: 16px;
+  }
+
+  .kpi-value {
+    font-size: 36px;
+  }
+
+  /* Cards */
+  .card {
+    padding: 16px;
+  }
+
+  /* Trend chart */
+  .trend-card {
+    padding: 16px;
+  }
+
+  .trend-head {
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .trend-title {
+    font-size: 18px;
+  }
+
+  .legend {
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+
+  /* Weight page stats */
+  .weight-stats {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .wstat-val {
+    font-size: 24px;
+  }
+
+  /* Log bar */
+  .log-bar {
+    flex-wrap: wrap;
+    gap: 8px;
+    padding: 14px 16px;
+  }
+
+  .log-input {
+    font-size: 18px;
+  }
+
+  /* Strength page */
+  .session-shell {
+    padding: 16px;
+  }
+
+  .session-title {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .session-group {
+    font-size: 22px;
+  }
+
+  .exercise-grid {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  .exercise-name {
+    font-size: 16px;
+  }
+
+  .set-row {
+    grid-template-columns: 20px 1fr 1fr 40px;
+    gap: 6px;
+    font-size: 13px;
+  }
+
+  .set-row.single-col {
+    grid-template-columns: 20px 1fr 40px;
+  }
+
+  .set-input-wrap input {
+    font-size: 15px;
+  }
+
+  .set-target {
+    display: none;
+  }
+
+  /* Meal grid */
+  .meal-grid {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  .meal-kind {
+    font-size: 18px;
+  }
+
+  /* Food day strip */
+  .food-day-strip {
+    gap: 6px;
+    margin-bottom: 20px;
+  }
+
+  .day-pill {
+    padding: 8px 10px;
+    min-width: 48px;
+  }
+
+  .day-pill-num {
+    font-size: 18px;
+  }
+
+  /* Login page */
+  .login-page {
+    grid-template-columns: 1fr;
+  }
+
+  .login-art {
+    display: none;
+  }
+
+  .login-form-side {
+    padding: 32px 20px;
+  }
+
+  .login-title {
+    font-size: 32px;
+  }
+
+  /* Compete page: scoreboard */
+  .hero [style*="grid-template-columns: 1fr auto 1fr"] {
+    /* can't target inline styles, handled in component */
+  }
+
+  /* Progression rows */
+  .prog-row {
+    grid-template-columns: 1fr;
+    gap: 12px;
+    padding: 16px 20px;
+  }
+
+  .prog-name {
+    font-size: 18px;
+  }
+
+  .prog-stats {
+    gap: 16px;
+    justify-content: flex-start;
+  }
+
+  /* Compete scoreboard */
+  .compete-scoreboard {
+    gap: 12px !important;
+  }
+
+  .compete-scoreboard .compete-avatar {
+    width: 40px !important;
+    height: 40px !important;
+    font-size: 16px !important;
+  }
+
+  .compete-score-num {
+    font-size: 32px !important;
+  }
+
+  .compete-player-name {
+    font-size: 14px !important;
+  }
+
+  /* Compete metric rows */
+  .compete-metric-row {
+    grid-template-columns: 1fr 80px 1fr !important;
+    padding: 14px 16px !important;
+  }
+
+  .compete-metric-val {
+    font-size: 22px !important;
+  }
+
+  /* Compete 7-day averages */
+  .compete-avg-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+
+  /* Food: checklist item rows */
+  .food-item-row {
+    grid-template-columns: 32px 1fr auto !important;
+  }
+
+  .food-item-macro {
+    display: none !important;
+  }
+
+  /* Food: custom form */
+  .food-custom-form {
+    flex-wrap: wrap !important;
+  }
+
+  .food-custom-form input:first-of-type {
+    width: 100% !important;
+    flex: none !important;
+  }
+
+  /* Food: progress bars grid */
+  .food-progress-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* Weight: plan stats */
+  .weight-plan-stats {
+    grid-template-columns: 1fr 1fr !important;
+  }
+
+  /* Week overview in Strength */
+  .week-overview-row {
+    grid-template-columns: 50px 70px 1fr !important;
+    padding: 12px 14px !important;
+  }
+
+  .week-overview-duration {
+    display: none !important;
+  }
+}
+
+/* Small phones */
+@media (max-width: 380px) {
+  .page-title {
+    font-size: 24px;
+  }
+
+  .page-body {
+    padding: 12px 12px 40px;
+  }
+
+  .page-head {
+    padding: 16px 12px 12px;
+  }
+
+  .hero-big {
+    font-size: 56px;
+  }
+
+  .kpi-value {
+    font-size: 28px;
+  }
+
+  .weight-stats {
+    grid-template-columns: 1fr;
+  }
+}

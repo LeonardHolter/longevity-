@@ -221,7 +221,7 @@ export default function Weight() {
           </form>
 
           {plan && (
-            <div style={{
+            <div className="weight-plan-stats" style={{
               display: "grid",
               gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))",
               gap: 20,

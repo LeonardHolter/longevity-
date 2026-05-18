@@ -330,7 +330,7 @@ export default function Strength() {
           {WEEK.map((d) => (
             <div
               key={d.id}
-              className="card"
+              className="card week-overview-row"
               style={{
                 display: "grid",
                 gridTemplateColumns: "80px 100px 1fr auto",
@@ -360,7 +360,7 @@ export default function Strength() {
               }}>
                 {d.exercises.length} exercises
               </div>
-              <div style={{
+              <div className="week-overview-duration" style={{
                 fontFamily: "var(--mono)",
                 fontSize: 10,
                 color: "var(--muted)",
