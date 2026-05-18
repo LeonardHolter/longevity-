@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState, useCallback } from "react";
 import { useUser } from "@clerk/nextjs";
+import { DailyChecklistPanel } from "./DailyChecklist";
 
 interface PlayerStats {
   userId: string;
@@ -60,7 +61,7 @@ function getWinner(
   return a > b ? "a" : "b";
 }
 
-export default function Compete() {
+export default function Compete({ onNavigate }: { onNavigate: (route: string) => void }) {
   const { user } = useUser();
   const [players, setPlayers] = useState<PlayerStats[]>([]);
   const [loading, setLoading] = useState(true);
@@ -178,6 +179,8 @@ export default function Compete() {
       </div>
 
       <div className="page-body">
+        <DailyChecklistPanel onNavigate={onNavigate} />
+
         {players.length < 2 ? (
           <div className="card" style={{ padding: 40, textAlign: "center" }}>
             <div style={{

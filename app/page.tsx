@@ -9,6 +9,7 @@ import Strength from "./components/Strength";
 import Weight from "./components/Weight";
 import Food from "./components/Food";
 import Compete from "./components/Compete";
+import Cardio from "./components/Cardio";
 import Alzheimer from "./components/Alzheimer";
 import { useWhoop, WhoopProvider } from "./lib/useWhoop";
 
@@ -23,7 +24,8 @@ function AuthenticatedApp() {
         {route === "strength" && <Strength />}
         {route === "weight" && <Weight />}
         {route === "food" && <Food />}
-        {route === "compete" && <Compete />}
+        {route === "cardio" && <Cardio />}
+        {route === "compete" && <Compete onNavigate={setRoute} />}
         {route === "alzheimer" && <Alzheimer />}
       </Shell>
     </WhoopProvider>

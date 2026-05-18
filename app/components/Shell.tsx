@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { UserButton, useUser } from "@clerk/nextjs";
 import { useWhoopContext } from "../lib/useWhoop";
 
@@ -15,13 +15,19 @@ const items = [
   { id: "dashboard", label: "Healthspan", short: "Health", num: "02" },
   { id: "alzheimer", label: "Alzheimer prevention", short: "Brain", num: "03" },
   { id: "strength", label: "Strength", short: "Lift", num: "04" },
-  { id: "weight", label: "Weight", short: "Weight", num: "05" },
-  { id: "food", label: "Food log", short: "Food", num: "06" },
+  { id: "cardio", label: "Cardio", short: "Cardio", num: "05" },
+  { id: "weight", label: "Weight", short: "Weight", num: "06" },
+  { id: "food", label: "Food log", short: "Food", num: "07" },
 ];
 
 export default function Shell({ route, setRoute, children }: ShellProps) {
   const whoop = useWhoopContext();
   const { user } = useUser();
+
+  const [stravaConnected, setStravaConnected] = useState(false);
+  useEffect(() => {
+    setStravaConnected(document.cookie.includes("strava_connected=true"));
+  }, []);
 
   const initials = user
     ? `${user.firstName?.[0] ?? ""}${user.lastName?.[0] ?? ""}`.toUpperCase() || "U"
@@ -86,6 +92,40 @@ export default function Shell({ route, setRoute, children }: ShellProps) {
                 }}
               />
               WHOOP
+              <span className="num" style={{ fontSize: 9 }}>
+                CONNECT
+              </span>
+            </button>
+          )}
+          {stravaConnected ? (
+            <div className="nav-item nav-whoop" style={{ pointerEvents: "none" }}>
+              <span
+                style={{
+                  width: 8,
+                  height: 8,
+                  borderRadius: "50%",
+                  background: "oklch(0.55 0.15 25)",
+                }}
+              />
+              Strava
+              <span className="num" style={{ fontSize: 9 }}>
+                SYNCED
+              </span>
+            </div>
+          ) : (
+            <button
+              className="nav-item nav-whoop"
+              onClick={() => { window.location.href = "/api/strava/auth"; }}
+            >
+              <span
+                style={{
+                  width: 8,
+                  height: 8,
+                  borderRadius: "50%",
+                  background: "var(--faint)",
+                }}
+              />
+              Strava
               <span className="num" style={{ fontSize: 9 }}>
                 CONNECT
               </span>
