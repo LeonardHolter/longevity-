@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useCallback, useRef } from "react";
+import { useUserData } from "../lib/useUserData";
 
 type Op = "+" | "−" | "×" | "÷";
 
@@ -53,15 +54,11 @@ export default function Alzheimer() {
   const [problem, setProblem] = useState<Problem>(generateProblem);
   const [input, setInput] = useState("");
   const [history, setHistory] = useState<{ correct: boolean; time: number }[]>([]);
-  const [bestScore, setBestScore] = useState<number | null>(null);
+  const [bestScore, setBestScore] = useUserData<number | null>("zetamacBest", null);
+  const [gameHistory, setGameHistory] = useUserData<{ date: string; score: number }[]>("zetamacHistory", []);
   const inputRef = useRef<HTMLInputElement>(null);
   const startTimeRef = useRef<number>(0);
   const problemTimeRef = useRef<number>(0);
-
-  useEffect(() => {
-    const saved = localStorage.getItem("zetamac_best");
-    if (saved) setBestScore(parseInt(saved));
-  }, []);
 
   const nextProblem = useCallback(() => {
     setProblem(generateProblem());
@@ -102,8 +99,10 @@ export default function Alzheimer() {
     if (state === "done") {
       if (bestScore === null || score > bestScore) {
         setBestScore(score);
-        localStorage.setItem("zetamac_best", score.toString());
       }
+      // Save to game history
+      const today = new Date().toISOString().slice(0, 10);
+      setGameHistory([...gameHistory, { date: today, score }]);
       // Sync to server for compete
       const avg = history.length
         ? Math.round(history.reduce((s, h) => s + h.time, 0) / history.length)
@@ -114,6 +113,7 @@ export default function Alzheimer() {
         body: JSON.stringify({ score, avgTime: avg }),
       }).catch(() => {});
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state, score, bestScore, history]);
 
   const handleInput = (val: string) => {

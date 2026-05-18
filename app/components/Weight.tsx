@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useState, useMemo, useEffect } from "react";
+import React, { useState, useMemo } from "react";
+import { useUserData } from "../lib/useUserData";
 
 interface WeightEntry {
   date: string; // ISO date string
@@ -13,51 +14,12 @@ interface WeightPlan {
   weeks: number;
 }
 
-const STORAGE_KEY = "helix-weight-entries";
-const PLAN_KEY = "helix-weight-plan";
-
-function loadEntries(): WeightEntry[] {
-  if (typeof window === "undefined") return [];
-  const raw = localStorage.getItem(STORAGE_KEY);
-  if (!raw) return [];
-  try {
-    return JSON.parse(raw);
-  } catch {
-    return [];
-  }
-}
-
-function saveEntries(entries: WeightEntry[]) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(entries));
-}
-
-function loadPlan(): WeightPlan | null {
-  if (typeof window === "undefined") return null;
-  const raw = localStorage.getItem(PLAN_KEY);
-  if (!raw) return null;
-  try {
-    return JSON.parse(raw);
-  } catch {
-    return null;
-  }
-}
-
-function savePlan(plan: WeightPlan) {
-  localStorage.setItem(PLAN_KEY, JSON.stringify(plan));
-}
-
 export default function Weight() {
-  const [entries, setEntries] = useState<WeightEntry[]>([]);
+  const [entries, setEntries, loadedEntries] = useUserData<WeightEntry[]>("weightEntries", []);
+  const [plan, setPlan, loadedPlan] = useUserData<WeightPlan | null>("weightPlan", null);
   const [draft, setDraft] = useState("");
-  const [plan, setPlan] = useState<WeightPlan | null>(null);
   const [planDraft, setPlanDraft] = useState({ weeklyGain: "0.3", weeks: "16" });
-  const [loaded, setLoaded] = useState(false);
-
-  useEffect(() => {
-    setEntries(loadEntries());
-    setPlan(loadPlan());
-    setLoaded(true);
-  }, []);
+  const loaded = loadedEntries && loadedPlan;
 
   const submitWeight = (e: React.FormEvent) => {
     e.preventDefault();
@@ -69,7 +31,6 @@ export default function Weight() {
     updated.push({ date: today, w: v });
     updated.sort((a, b) => a.date.localeCompare(b.date));
     setEntries(updated);
-    saveEntries(updated);
     setDraft("");
 
     // If no plan exists yet, set start weight
@@ -80,7 +41,6 @@ export default function Weight() {
         weeks: parseInt(planDraft.weeks) || 16,
       };
       setPlan(newPlan);
-      savePlan(newPlan);
     }
   };
 
@@ -92,7 +52,6 @@ export default function Weight() {
     const startWeight = entries.length > 0 ? entries[0].w : 0;
     const newPlan: WeightPlan = { startWeight, weeklyGain, weeks };
     setPlan(newPlan);
-    savePlan(newPlan);
   };
 
   const current = entries.length > 0 ? entries[entries.length - 1].w : null;

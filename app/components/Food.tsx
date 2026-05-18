@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState } from "react";
+import { useUserData } from "../lib/useUserData";
 
 /* ── types ── */
 interface FoodItem {
@@ -38,7 +39,6 @@ const TEMPLATE_ITEMS: FoodItem[] = [
 
 const KCAL_TARGET = 3000;
 const PROTEIN_TARGET = 130;
-const STORAGE_KEY = "helix-food-log";
 
 function todayKey() {
   return new Date().toISOString().slice(0, 10);
@@ -46,19 +46,6 @@ function todayKey() {
 
 function dateKey(d: Date) {
   return d.toISOString().slice(0, 10);
-}
-
-function loadAllLogs(): Record<string, DayLog> {
-  if (typeof window === "undefined") return {};
-  try {
-    return JSON.parse(localStorage.getItem(STORAGE_KEY) || "{}");
-  } catch {
-    return {};
-  }
-}
-
-function saveAllLogs(logs: Record<string, DayLog>) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(logs));
 }
 
 function getDayTotals(log: DayLog | undefined) {
@@ -87,20 +74,9 @@ function hitTargets(log: DayLog | undefined) {
 /* ── components ── */
 
 export default function Food() {
-  const [logs, setLogs] = useState<Record<string, DayLog>>({});
+  const [logs, setLogs, loaded] = useUserData<Record<string, DayLog>>("foodLogs", {});
   const [selectedDate, setSelectedDate] = useState(todayKey());
   const [customDraft, setCustomDraft] = useState({ name: "", kcal: "", protein: "" });
-  const [loaded, setLoaded] = useState(false);
-
-  useEffect(() => {
-    setLogs(loadAllLogs());
-    setLoaded(true);
-  }, []);
-
-  const persist = useCallback((next: Record<string, DayLog>) => {
-    setLogs(next);
-    saveAllLogs(next);
-  }, []);
 
   const currentLog: DayLog = logs[selectedDate] || { checked: [], custom: [] };
   const totals = getDayTotals(currentLog);
@@ -113,7 +89,7 @@ export default function Food() {
     } else {
       log.checked = [...log.checked, id];
     }
-    persist({ ...logs, [selectedDate]: log });
+    setLogs({ ...logs, [selectedDate]: log });
   };
 
   const addCustom = (e: React.FormEvent) => {
@@ -123,14 +99,14 @@ export default function Food() {
     if (!customDraft.name || isNaN(kcal)) return;
     const log = { ...currentLog };
     log.custom = [...log.custom, { name: customDraft.name, kcal, protein: isNaN(protein) ? 0 : protein }];
-    persist({ ...logs, [selectedDate]: log });
+    setLogs({ ...logs, [selectedDate]: log });
     setCustomDraft({ name: "", kcal: "", protein: "" });
   };
 
   const removeCustom = (idx: number) => {
     const log = { ...currentLog };
     log.custom = log.custom.filter((_, i) => i !== idx);
-    persist({ ...logs, [selectedDate]: log });
+    setLogs({ ...logs, [selectedDate]: log });
   };
 
   // Last 14 days for the day strip

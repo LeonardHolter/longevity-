@@ -1,11 +1,20 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useCallback } from "react";
+import { useUserData } from "../lib/useUserData";
 
 interface Exercise {
   name: string;
   scheme: string;
 }
+
+interface SetData {
+  weight: string;
+  reps: string;
+}
+
+// strengthLogs shape: { "2026-05-17": { "mon": { "Leg press": [{ weight: "100", reps: "10" }, ...] } } }
+type StrengthLogs = Record<string, Record<string, Record<string, SetData[]>>>;
 
 interface Day {
   id: string;
@@ -130,14 +139,16 @@ const WEEK: Day[] = [
 function SetRow({
   idx,
   exercise,
+  setData,
+  onUpdate,
 }: {
   idx: number;
   exercise: Exercise;
+  setData: SetData;
+  onUpdate: (data: SetData) => void;
 }) {
-  const [w, setW] = useState("");
-  const [r, setR] = useState("");
   const hasWeight = !exercise.scheme.includes("min") && !exercise.scheme.includes("sec");
-  const done = hasWeight ? w !== "" && r !== "" : r !== "";
+  const done = hasWeight ? setData.weight !== "" && setData.reps !== "" : setData.reps !== "";
 
   return (
     <div className={`set-row${!hasWeight ? " single-col" : ""}`}>
@@ -147,8 +158,8 @@ function SetRow({
           <label>Weight</label>
           <div className="set-input-wrap">
             <input
-              value={w}
-              onChange={(e) => setW(e.target.value)}
+              value={setData.weight}
+              onChange={(e) => onUpdate({ ...setData, weight: e.target.value })}
               placeholder="—"
               inputMode="decimal"
             />
@@ -160,8 +171,8 @@ function SetRow({
         <label>{hasWeight ? "Reps" : "Done"}</label>
         <div className="set-input-wrap">
           <input
-            value={r}
-            onChange={(e) => setR(e.target.value)}
+            value={setData.reps}
+            onChange={(e) => onUpdate({ ...setData, reps: e.target.value })}
             placeholder="—"
             inputMode="numeric"
           />
@@ -177,7 +188,15 @@ function SetRow({
   );
 }
 
-function ExerciseLogCard({ exercise }: { exercise: Exercise }) {
+function ExerciseLogCard({
+  exercise,
+  sets,
+  onSetUpdate,
+}: {
+  exercise: Exercise;
+  sets: SetData[];
+  onSetUpdate: (setIdx: number, data: SetData) => void;
+}) {
   const setsMatch = exercise.scheme.match(/^(\d+)\s*×/);
   const numSets = setsMatch ? parseInt(setsMatch[1]) : 1;
   const isTimeBased = exercise.scheme.includes("min") || exercise.scheme.includes("sec");
@@ -194,7 +213,13 @@ function ExerciseLogCard({ exercise }: { exercise: Exercise }) {
       {!isTimeBased && (
         <div className="set-list">
           {Array.from({ length: numSets }, (_, i) => (
-            <SetRow key={i} idx={i + 1} exercise={exercise} />
+            <SetRow
+              key={i}
+              idx={i + 1}
+              exercise={exercise}
+              setData={sets[i] || { weight: "", reps: "" }}
+              onUpdate={(data) => onSetUpdate(i, data)}
+            />
           ))}
         </div>
       )}
@@ -213,7 +238,15 @@ function ExerciseLogCard({ exercise }: { exercise: Exercise }) {
   );
 }
 
-function DayCard({ day }: { day: Day }) {
+function DayCard({
+  day,
+  dayLog,
+  onSetUpdate,
+}: {
+  day: Day;
+  dayLog: Record<string, SetData[]>;
+  onSetUpdate: (exerciseName: string, setIdx: number, data: SetData) => void;
+}) {
   const isCardio = day.type === "cardio";
 
   return (
@@ -255,7 +288,12 @@ function DayCard({ day }: { day: Day }) {
       ) : (
         <div className="exercise-grid">
           {day.exercises.map((ex, i) => (
-            <ExerciseLogCard key={i} exercise={ex} />
+            <ExerciseLogCard
+              key={i}
+              exercise={ex}
+              sets={dayLog[ex.name] || []}
+              onSetUpdate={(setIdx, data) => onSetUpdate(ex.name, setIdx, data)}
+            />
           ))}
         </div>
       )}
@@ -283,6 +321,29 @@ export default function Strength() {
   const mappedIdx = todayIdx === 0 ? 6 : todayIdx - 1;
   const [activeDay, setActiveDay] = useState(dayIds[mappedIdx] || "mon");
   const currentDay = WEEK.find((d) => d.id === activeDay)!;
+
+  const today = new Date().toISOString().slice(0, 10);
+  const [logs, setLogs] = useUserData<StrengthLogs>("strengthLogs", {});
+
+  const todayLogs = logs[today] || {};
+  const dayLog = todayLogs[activeDay] || {};
+
+  const handleSetUpdate = useCallback(
+    (exerciseName: string, setIdx: number, data: SetData) => {
+      const newLogs = { ...logs };
+      if (!newLogs[today]) newLogs[today] = {};
+      if (!newLogs[today][activeDay]) newLogs[today][activeDay] = {};
+      const exSets = [...(newLogs[today][activeDay][exerciseName] || [])];
+      // Pad array if needed
+      while (exSets.length <= setIdx) {
+        exSets.push({ weight: "", reps: "" });
+      }
+      exSets[setIdx] = data;
+      newLogs[today][activeDay][exerciseName] = exSets;
+      setLogs(newLogs);
+    },
+    [logs, setLogs, today, activeDay]
+  );
 
   return (
     <div>
@@ -322,7 +383,7 @@ export default function Strength() {
           ))}
         </div>
 
-        <DayCard day={currentDay} />
+        <DayCard day={currentDay} dayLog={dayLog} onSetUpdate={handleSetUpdate} />
 
         {/* Week overview */}
         <div className="divider-label">Week overview</div>
