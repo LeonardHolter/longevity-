@@ -11,12 +11,12 @@ interface ShellProps {
 }
 
 const items = [
-  { id: "compete", label: "Compete", num: "01" },
-  { id: "dashboard", label: "Healthspan", num: "02" },
-  { id: "alzheimer", label: "Alzheimer prevention", num: "03" },
-  { id: "strength", label: "Strength", num: "04" },
-  { id: "weight", label: "Weight", num: "05" },
-  { id: "food", label: "Food log", num: "06" },
+  { id: "compete", label: "Compete", short: "Compete", num: "01" },
+  { id: "dashboard", label: "Healthspan", short: "Health", num: "02" },
+  { id: "alzheimer", label: "Alzheimer prevention", short: "Brain", num: "03" },
+  { id: "strength", label: "Strength", short: "Lift", num: "04" },
+  { id: "weight", label: "Weight", short: "Weight", num: "05" },
+  { id: "food", label: "Food log", short: "Food", num: "06" },
 ];
 
 export default function Shell({ route, setRoute, children }: ShellProps) {
@@ -51,13 +51,14 @@ export default function Shell({ route, setRoute, children }: ShellProps) {
               className={"nav-item" + (route === it.id ? " active" : "")}
               onClick={() => setRoute(it.id)}
             >
-              {it.label}
+              <span className="nav-label-full">{it.label}</span>
+              <span className="nav-label-short">{it.short}</span>
               <span className="num">{it.num}</span>
             </button>
           ))}
           <div className="nav-section">Connected</div>
           {whoop.connected ? (
-            <div className="nav-item" style={{ pointerEvents: "none" }}>
+            <div className="nav-item nav-whoop" style={{ pointerEvents: "none" }}>
               <span
                 style={{
                   width: 8,
@@ -73,7 +74,7 @@ export default function Shell({ route, setRoute, children }: ShellProps) {
             </div>
           ) : (
             <button
-              className="nav-item"
+              className="nav-item nav-whoop"
               onClick={whoop.connect}
             >
               <span

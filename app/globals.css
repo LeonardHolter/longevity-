@@ -117,6 +117,7 @@ button { font-family: inherit; cursor: pointer; }
   transition: background 80ms;
 }
 .nav-item:hover { background: var(--surface-2); }
+.nav-label-short { display: none; }
 .nav-item.active {
   background: var(--ink);
   color: var(--surface);
@@ -1096,10 +1097,9 @@ button { font-family: inherit; cursor: pointer; }
    ============================ */
 
 @media (max-width: 768px) {
-  /* Shell: sidebar becomes bottom nav */
+  /* Shell: sidebar becomes bottom tab bar */
   .shell {
     grid-template-columns: 1fr;
-    grid-template-rows: 1fr auto;
   }
 
   .sidebar {
@@ -1112,42 +1112,60 @@ button { font-family: inherit; cursor: pointer; }
     border-right: none;
     border-top: 1px solid var(--hairline);
     padding: 0;
-    flex-direction: row;
+    flex-direction: column;
     gap: 0;
     z-index: 100;
-    overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
+    background: var(--surface);
+    /* iOS safe area */
+    padding-bottom: env(safe-area-inset-bottom, 0px);
   }
 
   .brand { display: none; }
   .account { display: none; }
   .nav-section { display: none; }
+  /* Hide WHOOP connection row in bottom bar */
+  .nav-whoop { display: none !important; }
 
   .nav {
     flex-direction: row;
     gap: 0;
     width: 100%;
-    padding: 6px 8px;
+    padding: 6px 4px;
+    padding-bottom: 2px;
     overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
   }
+  .nav::-webkit-scrollbar { display: none; }
 
   .nav-item {
+    flex: 1;
     flex-direction: column;
     align-items: center;
+    justify-content: center;
     gap: 2px;
-    padding: 8px 10px;
-    font-size: 10px;
+    padding: 6px 4px;
+    font-size: 9px;
     min-width: 0;
     flex-shrink: 0;
-    border-radius: 8px;
+    border-radius: 6px;
     text-align: center;
     white-space: nowrap;
+    letter-spacing: 0;
   }
 
   .nav-item .num { display: none; }
+  .nav-label-full { display: none; }
+  .nav-label-short { display: inline; }
+
+  .nav-item.active {
+    background: var(--ink);
+    color: var(--surface);
+  }
 
   .main {
-    padding-bottom: 72px; /* space for bottom nav */
+    padding-bottom: 68px; /* space for bottom nav + safe area */
   }
 
   /* Page chrome */
