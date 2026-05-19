@@ -54,7 +54,6 @@ export default function DailyChecklist() {
   const [strengthLogs] = useUserData<StrengthLogs>("strengthLogs", {});
   const [zetamacHistory] = useUserData<{ date: string; score: number }[]>("zetamacHistory", []);
   const [weightEntries] = useUserData<{ date: string; w: number }[]>("weightEntries", []);
-  const [cardioLogs] = useUserData<Record<string, unknown[]>>("cardioLogs", {});
 
   // Check each task
   const todayFood = foodLogs[today];
@@ -62,35 +61,25 @@ export default function DailyChecklist() {
   const foodDone = foodTotals.kcal >= KCAL_TARGET && foodTotals.protein >= PROTEIN_TARGET;
   const foodStarted = foodTotals.kcal > 0;
 
-  // Workout: strength logs OR cardio logs count
   const todayStrength = strengthLogs[today];
-  const strengthDone = todayStrength && Object.keys(todayStrength).some((dayId) => {
+  const workoutDone = todayStrength && Object.keys(todayStrength).some((dayId) => {
     const exercises = todayStrength[dayId];
     return Object.values(exercises).some((sets) =>
       (sets as SetData[]).some((s) => s.weight !== "" || s.reps !== "")
     );
   });
-  const cardioDone = cardioLogs[today] && (cardioLogs[today] as unknown[]).length > 0;
-  const workoutDone = strengthDone || cardioDone;
 
   const zetamacDone = zetamacHistory.some((h) => h.date === today);
 
   const weightDone = weightEntries.some((e) => e.date === today);
 
-  // Cardio days: tue, fri, sat
-  const isCardioDay = ["tue", "fri", "sat"].includes(todayDayId);
-  const dayLabels: Record<string, string> = {
-    tue: "Z2 RUN", fri: "Z2 RUN", sat: "4x4 HIIT",
-    mon: "LEGS", wed: "PUSH", thu: "PULL", sun: "ABS",
-  };
-
   const tasks = [
     {
       id: "workout",
-      label: isCardioDay ? dayLabels[todayDayId] || "Workout" : "Workout",
-      detail: dayLabels[todayDayId] || todayDayId.toUpperCase(),
+      label: "Workout",
+      detail: todayDayId.toUpperCase(),
       done: !!workoutDone,
-      route: isCardioDay ? "cardio" : "strength",
+      route: "strength",
     },
     {
       id: "food",

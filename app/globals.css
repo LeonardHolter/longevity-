@@ -1521,19 +1521,6 @@ button { font-family: inherit; cursor: pointer; }
     display: none !important;
   }
 
-  /* Cardio page */
-  .cardio-manual-grid {
-    grid-template-columns: 1fr 1fr !important;
-  }
-
-  .cardio-entry-stats {
-    flex-wrap: wrap;
-    gap: 12px !important;
-  }
-
-  .cardio-hr-stat {
-    display: none;
-  }
 }
 
 /* Small phones */
