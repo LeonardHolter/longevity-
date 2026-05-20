@@ -20,9 +20,12 @@ export async function POST() {
         zetamacHistory: [],
       },
       publicMetadata: {
-        zetamacBest: null,
-        zetamacLast: null,
-        zetamacAvgTime: null,
+        zetamac: {
+          lastScore: null,
+          bestScore: null,
+          avgTime: null,
+          lastPlayed: null,
+        },
       },
     });
     reset.push(user.id);
