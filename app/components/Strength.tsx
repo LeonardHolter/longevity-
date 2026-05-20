@@ -66,7 +66,6 @@ const WEEK: Day[] = [
       { name: "Barbell bench press", scheme: "4 × 6–10" },
       { name: "Seated DB shoulder press", scheme: "3 × 8–12" },
       { name: "Incline DB press", scheme: "3 × 8–12" },
-      { name: "Cable fly / pec deck", scheme: "3 × 12–15" },
       { name: "Lateral raises", scheme: "4 × 12–20" },
       { name: "Triceps rope pushdown", scheme: "3 × 10–15" },
       { name: "Overhead cable triceps ext.", scheme: "3 × 10–15" },
