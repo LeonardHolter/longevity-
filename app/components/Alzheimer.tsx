@@ -15,31 +15,48 @@ interface Problem {
   answer: number;
 }
 
+// Ranges matching real Zetamac:
+// Addition:       (2–100) + (2–100)
+// Subtraction:    addition problems in reverse → (a+b) − a = b
+// Multiplication: (2–12) × (2–100)
+// Division:       multiplication problems in reverse → (a×b) ÷ a = b
+function randInt(min: number, max: number) {
+  return Math.floor(Math.random() * (max - min + 1)) + min;
+}
+
 function generateProblem(): Problem {
   const op = OPERATIONS[Math.floor(Math.random() * OPERATIONS.length)];
   let a: number, b: number, answer: number;
 
   switch (op) {
     case "+":
-      a = Math.floor(Math.random() * 100) + 2;
-      b = Math.floor(Math.random() * 100) + 2;
+      a = randInt(2, 100);
+      b = randInt(2, 100);
       answer = a + b;
       break;
-    case "−":
-      a = Math.floor(Math.random() * 100) + 2;
-      b = Math.floor(Math.random() * a) + 1;
-      answer = a - b;
+    case "−": {
+      // Subtraction = addition in reverse: pick two addends, show their sum minus one
+      const x = randInt(2, 100);
+      const y = randInt(2, 100);
+      a = x + y;    // sum shown first
+      b = x;        // subtract one addend
+      answer = y;   // the other addend
       break;
+    }
     case "×":
-      a = Math.floor(Math.random() * 12) + 2;
-      b = Math.floor(Math.random() * 12) + 2;
+      a = randInt(2, 12);
+      b = randInt(2, 100);
       answer = a * b;
       break;
-    case "÷":
-      b = Math.floor(Math.random() * 12) + 2;
-      answer = Math.floor(Math.random() * 12) + 2;
-      a = b * answer;
+    case "÷": {
+      // Division = multiplication in reverse: (a × b) ÷ a = b
+      const m = randInt(2, 12);
+      const n = randInt(2, 100);
+      a = m * n;    // product shown first
+      b = m;        // divide by one factor
+      answer = n;   // the other factor
       break;
+    }
     default:
       a = 0; b = 0; answer = 0;
   }
