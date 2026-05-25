@@ -67,9 +67,36 @@ function getDayTotals(log: DayLog | undefined) {
   return { kcal, protein };
 }
 
-function hitTargets(log: DayLog | undefined) {
-  const t = getDayTotals(log);
-  return t.kcal >= KCAL_TARGET && t.protein >= PROTEIN_TARGET;
+function daysSinceMonday(dateStr: string) {
+  const d = new Date(dateStr + "T00:00:00");
+  const dow = d.getDay();
+  return dow === 0 ? 6 : dow - 1;
+}
+
+function getAdjustedTargets(dateStr: string, logs: Record<string, DayLog>) {
+  const offset = daysSinceMonday(dateStr);
+  const d = new Date(dateStr + "T00:00:00");
+  let carryKcal = 0;
+  let carryProtein = 0;
+  for (let i = offset; i > 0; i--) {
+    const prev = new Date(d);
+    prev.setDate(prev.getDate() - i);
+    const t = getDayTotals(logs[dateKey(prev)]);
+    carryKcal += KCAL_TARGET - t.kcal;
+    carryProtein += PROTEIN_TARGET - t.protein;
+  }
+  return {
+    kcal: Math.max(0, KCAL_TARGET + carryKcal),
+    protein: Math.max(0, PROTEIN_TARGET + carryProtein),
+    carryKcal,
+    carryProtein,
+  };
+}
+
+function hitTargetsAdj(dateStr: string, logs: Record<string, DayLog>) {
+  const t = getDayTotals(logs[dateStr]);
+  const adj = getAdjustedTargets(dateStr, logs);
+  return t.kcal >= adj.kcal && t.protein >= adj.protein;
 }
 
 /* ── components ── */
@@ -81,7 +108,8 @@ export default function Food() {
 
   const currentLog: DayLog = logs[selectedDate] || { checked: [], custom: [] };
   const totals = getDayTotals(currentLog);
-  const isHit = totals.kcal >= KCAL_TARGET && totals.protein >= PROTEIN_TARGET;
+  const adjTargets = getAdjustedTargets(selectedDate, logs);
+  const isHit = totals.kcal >= adjTargets.kcal && totals.protein >= adjTargets.protein;
 
   const toggleItem = (id: string) => {
     const log = { ...currentLog };
@@ -136,7 +164,7 @@ export default function Food() {
   for (let i = 0; i < 365; i++) {
     const d = new Date();
     d.setDate(d.getDate() - i);
-    if (hitTargets(logs[dateKey(d)])) streak++;
+    if (hitTargetsAdj(dateKey(d), logs)) streak++;
     else break;
   }
 
@@ -161,16 +189,16 @@ export default function Food() {
             renderOpponent={(data, name) => {
               const foodLogs = (data as Record<string, { checked: string[]; custom: { name: string; kcal: number; protein: number }[] }> | null) || {};
               const today = new Date().toISOString().slice(0, 10);
-              const todayLog = foodLogs[today];
-              const totals = getDayTotals(todayLog);
-              const isHit = totals.kcal >= KCAL_TARGET && totals.protein >= PROTEIN_TARGET;
+              const totals = getDayTotals(foodLogs[today]);
+              const oppAdj = getAdjustedTargets(today, foodLogs);
+              const isHit = totals.kcal >= oppAdj.kcal && totals.protein >= oppAdj.protein;
 
               // Count streak
               let oppStreak = 0;
               for (let i = 0; i < 365; i++) {
                 const d = new Date();
                 d.setDate(d.getDate() - i);
-                if (hitTargets(foodLogs[dateKey(d)])) oppStreak++;
+                if (hitTargetsAdj(dateKey(d), foodLogs)) oppStreak++;
                 else break;
               }
 
@@ -181,7 +209,7 @@ export default function Food() {
                 d.setDate(d.getDate() - i);
                 const dk = dateKey(d);
                 const t = getDayTotals(foodLogs[dk]);
-                days7.push({ date: dk, hit: hitTargets(foodLogs[dk]), kcal: t.kcal, protein: t.protein });
+                days7.push({ date: dk, hit: hitTargetsAdj(dk, foodLogs), kcal: t.kcal, protein: t.protein });
               }
 
               return (
@@ -229,7 +257,7 @@ export default function Food() {
           {days.map((d) => {
             const key = dateKey(d);
             const isSelected = key === selectedDate;
-            const dayHit = hitTargets(logs[key]);
+            const dayHit = hitTargetsAdj(key, logs);
             const dayLog = logs[key];
             const hasEntries = dayLog && (dayLog.checked.length > 0 || dayLog.custom.length > 0);
 
@@ -301,6 +329,26 @@ export default function Food() {
             )}
           </div>
 
+          {adjTargets.carryKcal !== 0 || adjTargets.carryProtein !== 0 ? (
+            <div style={{
+              fontFamily: "var(--mono)", fontSize: 10, color: "var(--muted)",
+              marginBottom: 12,
+            }}>
+              Weekly carryover:{" "}
+              {adjTargets.carryKcal !== 0 && (
+                <span style={{ color: adjTargets.carryKcal > 0 ? "oklch(0.55 0.2 30)" : "oklch(0.45 0.15 155)" }}>
+                  {adjTargets.carryKcal > 0 ? "+" : ""}{adjTargets.carryKcal} kcal
+                </span>
+              )}
+              {adjTargets.carryKcal !== 0 && adjTargets.carryProtein !== 0 && " · "}
+              {adjTargets.carryProtein !== 0 && (
+                <span style={{ color: adjTargets.carryProtein > 0 ? "oklch(0.55 0.2 30)" : "oklch(0.45 0.15 155)" }}>
+                  {adjTargets.carryProtein > 0 ? "+" : ""}{adjTargets.carryProtein}g protein
+                </span>
+              )}
+            </div>
+          ) : null}
+
           <div className="food-progress-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
             {/* Kcal bar */}
             <div>
@@ -308,9 +356,9 @@ export default function Food() {
                 <span style={{ fontFamily: "var(--mono)", fontSize: 10, color: "var(--muted)" }}>CALORIES</span>
                 <span style={{
                   fontFamily: "var(--mono)", fontSize: 11,
-                  color: totals.kcal >= KCAL_TARGET ? "oklch(0.45 0.15 155)" : "var(--ink)",
+                  color: totals.kcal >= adjTargets.kcal ? "oklch(0.45 0.15 155)" : "var(--ink)",
                 }}>
-                  {totals.kcal.toLocaleString()} / {KCAL_TARGET.toLocaleString()}
+                  {totals.kcal.toLocaleString()} / {adjTargets.kcal.toLocaleString()}
                 </span>
               </div>
               <div style={{
@@ -318,9 +366,9 @@ export default function Food() {
               }}>
                 <div style={{
                   height: "100%",
-                  width: `${Math.min(100, (totals.kcal / KCAL_TARGET) * 100)}%`,
+                  width: `${Math.min(100, adjTargets.kcal > 0 ? (totals.kcal / adjTargets.kcal) * 100 : 100)}%`,
                   borderRadius: 4,
-                  background: totals.kcal >= KCAL_TARGET ? "oklch(0.55 0.2 155)" : "var(--accent)",
+                  background: totals.kcal >= adjTargets.kcal ? "oklch(0.55 0.2 155)" : "var(--accent)",
                   transition: "width 0.3s",
                 }} />
               </div>
@@ -331,9 +379,9 @@ export default function Food() {
                 <span style={{ fontFamily: "var(--mono)", fontSize: 10, color: "var(--muted)" }}>PROTEIN</span>
                 <span style={{
                   fontFamily: "var(--mono)", fontSize: 11,
-                  color: totals.protein >= PROTEIN_TARGET ? "oklch(0.45 0.15 155)" : "var(--ink)",
+                  color: totals.protein >= adjTargets.protein ? "oklch(0.45 0.15 155)" : "var(--ink)",
                 }}>
-                  {totals.protein}g / {PROTEIN_TARGET}g
+                  {totals.protein}g / {adjTargets.protein}g
                 </span>
               </div>
               <div style={{
@@ -341,9 +389,9 @@ export default function Food() {
               }}>
                 <div style={{
                   height: "100%",
-                  width: `${Math.min(100, (totals.protein / PROTEIN_TARGET) * 100)}%`,
+                  width: `${Math.min(100, adjTargets.protein > 0 ? (totals.protein / adjTargets.protein) * 100 : 100)}%`,
                   borderRadius: 4,
-                  background: totals.protein >= PROTEIN_TARGET ? "oklch(0.55 0.2 155)" : "var(--accent)",
+                  background: totals.protein >= adjTargets.protein ? "oklch(0.55 0.2 155)" : "var(--accent)",
                   transition: "width 0.3s",
                 }} />
               </div>
@@ -533,18 +581,18 @@ export default function Food() {
               STILL NEED TODAY
             </div>
             <div style={{ display: "flex", gap: 32 }}>
-              {totals.kcal < KCAL_TARGET && (
+              {totals.kcal < adjTargets.kcal && (
                 <div>
                   <span style={{ fontFamily: "var(--serif)", fontSize: 24 }}>
-                    {(KCAL_TARGET - totals.kcal).toLocaleString()}
+                    {(adjTargets.kcal - totals.kcal).toLocaleString()}
                   </span>
                   <span style={{ fontFamily: "var(--mono)", fontSize: 11, color: "var(--muted)", marginLeft: 6 }}>kcal</span>
                 </div>
               )}
-              {totals.protein < PROTEIN_TARGET && (
+              {totals.protein < adjTargets.protein && (
                 <div>
                   <span style={{ fontFamily: "var(--serif)", fontSize: 24 }}>
-                    {PROTEIN_TARGET - totals.protein}
+                    {adjTargets.protein - totals.protein}
                   </span>
                   <span style={{ fontFamily: "var(--mono)", fontSize: 11, color: "var(--muted)", marginLeft: 6 }}>g protein</span>
                 </div>
