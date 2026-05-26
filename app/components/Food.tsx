@@ -404,6 +404,37 @@ export default function Food() {
               </div>
             </div>
           </div>
+
+          {/* Overflow to next day */}
+          {(totals.kcal !== 0 || totals.protein !== 0) && (
+            <div style={{
+              display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20,
+              marginTop: 14, paddingTop: 14, borderTop: "1px solid var(--hairline)",
+            }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <span style={{ fontFamily: "var(--mono)", fontSize: 10, color: "var(--muted)" }}>
+                  {totals.kcal >= adjTargets.kcal ? "SURPLUS →" : "DEFICIT →"}
+                </span>
+                <span style={{
+                  fontFamily: "var(--mono)", fontSize: 11, fontWeight: 600,
+                  color: totals.kcal >= adjTargets.kcal ? "oklch(0.45 0.15 155)" : "oklch(0.55 0.2 30)",
+                }}>
+                  {totals.kcal >= adjTargets.kcal ? "+" : ""}{totals.kcal - adjTargets.kcal} kcal
+                </span>
+              </div>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <span style={{ fontFamily: "var(--mono)", fontSize: 10, color: "var(--muted)" }}>
+                  {totals.protein >= adjTargets.protein ? "SURPLUS →" : "DEFICIT →"}
+                </span>
+                <span style={{
+                  fontFamily: "var(--mono)", fontSize: 11, fontWeight: 600,
+                  color: totals.protein >= adjTargets.protein ? "oklch(0.45 0.15 155)" : "oklch(0.55 0.2 30)",
+                }}>
+                  {totals.protein >= adjTargets.protein ? "+" : ""}{totals.protein - adjTargets.protein}g
+                </span>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Meal checklists */}
