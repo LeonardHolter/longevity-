@@ -41,12 +41,19 @@ const TEMPLATE_ITEMS: FoodItem[] = [
 const KCAL_TARGET = 3000;
 const PROTEIN_TARGET = 130;
 
+function localDateStr(d: Date): string {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
 function todayKey() {
-  return new Date().toISOString().slice(0, 10);
+  return localDateStr(new Date());
 }
 
 function dateKey(d: Date) {
-  return d.toISOString().slice(0, 10);
+  return localDateStr(d);
 }
 
 function getDayTotals(log: DayLog | undefined) {
@@ -188,7 +195,7 @@ export default function Food() {
             dataKey="foodLogs"
             renderOpponent={(data, name) => {
               const foodLogs = (data as Record<string, { checked: string[]; custom: { name: string; kcal: number; protein: number }[] }> | null) || {};
-              const today = new Date().toISOString().slice(0, 10);
+              const today = todayKey();
               const totals = getDayTotals(foodLogs[today]);
               const oppAdj = getAdjustedTargets(today, foodLogs);
               const isHit = totals.kcal >= oppAdj.kcal && totals.protein >= oppAdj.protein;
