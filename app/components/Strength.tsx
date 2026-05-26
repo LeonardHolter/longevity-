@@ -239,12 +239,18 @@ function DayCard({
   day,
   dayLog,
   onSetUpdate,
+  onToggleCardio,
 }: {
   day: Day;
   dayLog: Record<string, SetData[]>;
   onSetUpdate: (exerciseName: string, setIdx: number, data: SetData) => void;
+  onToggleCardio: (exerciseName: string) => void;
 }) {
   const isCardio = day.type === "cardio";
+  const allCardioDone = isCardio && day.exercises.every((ex) => {
+    const sets = dayLog[ex.name] || [];
+    return sets.length > 0 && sets[0].reps === "✓";
+  });
 
   return (
     <div className="session-shell">
@@ -254,33 +260,63 @@ function DayCard({
           <div className="session-title">
             <span className="session-day-tag">{day.tag}</span>
             <span className="session-group">{day.duration}</span>
+            {isCardio && allCardioDone && (
+              <span style={{
+                fontFamily: "var(--mono)", fontSize: 10, letterSpacing: "0.14em",
+                color: "oklch(0.45 0.15 155)", fontWeight: 600, marginLeft: 12,
+              }}>
+                ✓ DONE
+              </span>
+            )}
           </div>
         </div>
       </div>
 
       {isCardio ? (
         <div style={{ padding: "8px 0" }}>
-          {day.exercises.map((ex, i) => (
-            <div
-              key={i}
-              style={{
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "center",
-                padding: "12px 0",
-                borderBottom: i < day.exercises.length - 1 ? "1px solid var(--hairline)" : "none",
-              }}
-            >
-              <div style={{ fontFamily: "var(--serif)", fontSize: 16 }}>{ex.name}</div>
-              <div style={{
-                fontFamily: "var(--mono)",
-                fontSize: 12,
-                color: "var(--muted)",
-              }}>
-                {ex.scheme}
+          {day.exercises.map((ex, i) => {
+            const checked = (dayLog[ex.name] || [])[0]?.reps === "✓";
+            return (
+              <div
+                key={i}
+                onClick={() => onToggleCardio(ex.name)}
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "32px 1fr auto",
+                  alignItems: "center",
+                  gap: 12,
+                  padding: "12px 0",
+                  borderBottom: i < day.exercises.length - 1 ? "1px solid var(--hairline)" : "none",
+                  cursor: "pointer",
+                  opacity: checked ? 0.5 : 1,
+                  transition: "opacity 0.15s",
+                }}
+              >
+                <div style={{
+                  width: 20, height: 20, borderRadius: 4,
+                  border: checked ? "none" : "1.5px solid var(--faint)",
+                  background: checked ? "oklch(0.55 0.2 155)" : "transparent",
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  fontSize: 12, color: "var(--bg)", transition: "all 0.15s",
+                }}>
+                  {checked && "✓"}
+                </div>
+                <div style={{
+                  fontFamily: "var(--serif)", fontSize: 16,
+                  textDecoration: checked ? "line-through" : "none",
+                }}>
+                  {ex.name}
+                </div>
+                <div style={{
+                  fontFamily: "var(--mono)",
+                  fontSize: 12,
+                  color: "var(--muted)",
+                }}>
+                  {ex.scheme}
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       ) : (
         <div className="exercise-grid">
@@ -337,6 +373,21 @@ export default function Strength() {
       }
       exSets[setIdx] = data;
       newLogs[today][activeDay][exerciseName] = exSets;
+      setLogs(newLogs);
+    },
+    [logs, setLogs, today, activeDay]
+  );
+
+  const handleToggleCardio = useCallback(
+    (exerciseName: string) => {
+      const newLogs = { ...logs };
+      if (!newLogs[today]) newLogs[today] = {};
+      if (!newLogs[today][activeDay]) newLogs[today][activeDay] = {};
+      const current = newLogs[today][activeDay][exerciseName] || [];
+      const isChecked = current.length > 0 && current[0].reps === "✓";
+      newLogs[today][activeDay][exerciseName] = isChecked
+        ? []
+        : [{ weight: "", reps: "✓" }];
       setLogs(newLogs);
     },
     [logs, setLogs, today, activeDay]
@@ -448,7 +499,7 @@ export default function Strength() {
           ))}
         </div>
 
-        <DayCard day={currentDay} dayLog={dayLog} onSetUpdate={handleSetUpdate} />
+        <DayCard day={currentDay} dayLog={dayLog} onSetUpdate={handleSetUpdate} onToggleCardio={handleToggleCardio} />
 
         {/* Week overview */}
         <div className="divider-label">Week overview</div>
