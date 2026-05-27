@@ -68,7 +68,6 @@ const WEEK: Day[] = [
       { name: "Incline DB press", scheme: "3 × 8–12" },
       { name: "Lateral raises", scheme: "4 × 12–20" },
       { name: "Triceps rope pushdown", scheme: "3 × 10–15" },
-      { name: "Overhead cable triceps ext.", scheme: "3 × 10–15" },
     ],
   },
   {
