@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import { useUserData } from "../lib/useUserData";
+import { LineChart } from "./Charts";
 
 type Op = "+" | "−" | "×" | "÷";
 
@@ -62,6 +63,69 @@ function generateProblem(): Problem {
   }
 
   return { a, b, op, answer };
+}
+
+function ZetamacChart({ gameHistory }: { gameHistory: { date: string; score: number }[] }) {
+  if (gameHistory.length < 2) return null;
+
+  // Group by date → best score per day
+  const byDate: Record<string, number> = {};
+  for (const g of gameHistory) {
+    if (!byDate[g.date] || g.score > byDate[g.date]) byDate[g.date] = g.score;
+  }
+  const entries = Object.entries(byDate).sort(([a], [b]) => a.localeCompare(b));
+  const values = entries.map(([, s]) => s);
+  const labels = entries.map(([d]) =>
+    new Date(d + "T12:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" })
+  );
+
+  const first = values[0];
+  const last = values[values.length - 1];
+  const diff = last - first;
+
+  return (
+    <div className="card" style={{ padding: "20px 24px", marginTop: 24 }}>
+      <div style={{
+        display: "flex", justifyContent: "space-between", alignItems: "baseline",
+        marginBottom: 16,
+      }}>
+        <div>
+          <div style={{ fontFamily: "var(--mono)", fontSize: 10, letterSpacing: "0.1em", color: "var(--muted)" }}>
+            BEST SCORE PER DAY · {entries.length} SESSIONS
+          </div>
+          <div style={{ fontFamily: "var(--serif)", fontSize: 22, marginTop: 4 }}>
+            {last}
+            <span style={{ fontFamily: "var(--mono)", fontSize: 12, color: "var(--muted)", marginLeft: 6 }}>latest</span>
+          </div>
+        </div>
+        {diff !== 0 && (
+          <div style={{
+            fontFamily: "var(--mono)", fontSize: 11,
+            color: diff > 0 ? "oklch(0.45 0.15 155)" : "oklch(0.55 0.2 30)",
+          }}>
+            {diff > 0 ? "↑" : "↓"} {Math.abs(diff)} since first session
+          </div>
+        )}
+      </div>
+      <LineChart
+        width={580}
+        height={200}
+        padding={{ top: 16, right: 16, bottom: 32, left: 44 }}
+        yUnit="SCORE"
+        yTicks={4}
+        xLabels={labels}
+        series={[{
+          values,
+          color: "var(--accent)",
+          width: 2,
+          fill: true,
+          dots: true,
+          dotR: 3.5,
+          endLabel: true,
+        }]}
+      />
+    </div>
+  );
 }
 
 export default function Alzheimer() {
@@ -195,27 +259,30 @@ export default function Alzheimer() {
 
       <div className="page-body">
         {state === "idle" && (
-          <div className="hero" style={{ textAlign: "center" }}>
-            <div style={{
-              fontFamily: "var(--serif)",
-              fontSize: 28,
-              marginBottom: 12,
-            }}>
-              Ready to train?
+          <>
+            <div className="hero" style={{ textAlign: "center" }}>
+              <div style={{
+                fontFamily: "var(--serif)",
+                fontSize: 28,
+                marginBottom: 12,
+              }}>
+                Ready to train?
+              </div>
+              <p style={{ color: "var(--muted)", maxWidth: 420, margin: "0 auto 28px", lineHeight: 1.6 }}>
+                Solve as many arithmetic problems as you can in 2 minutes.
+                Standard settings: +, −, ×, ÷ with numbers 2–100.
+              </p>
+              <button
+                className="login-btn"
+                onClick={startGame}
+                style={{ width: "auto", padding: "14px 48px", margin: "0 auto" }}
+              >
+                Start
+                <span className="login-arrow">→</span>
+              </button>
             </div>
-            <p style={{ color: "var(--muted)", maxWidth: 420, margin: "0 auto 28px", lineHeight: 1.6 }}>
-              Solve as many arithmetic problems as you can in 2 minutes.
-              Standard settings: +, −, ×, ÷ with numbers 2–100.
-            </p>
-            <button
-              className="login-btn"
-              onClick={startGame}
-              style={{ width: "auto", padding: "14px 48px", margin: "0 auto" }}
-            >
-              Start
-              <span className="login-arrow">→</span>
-            </button>
-          </div>
+            <ZetamacChart gameHistory={gameHistory} />
+          </>
         )}
 
         {state === "playing" && (
@@ -365,6 +432,8 @@ export default function Alzheimer() {
                 </div>
               </div>
             </div>
+
+            <ZetamacChart gameHistory={gameHistory} />
 
             <div style={{ textAlign: "center", marginTop: 32 }}>
               <button
