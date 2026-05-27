@@ -3,6 +3,7 @@
 import React, { useState, useCallback } from "react";
 import { useUserData } from "../lib/useUserData";
 import { OpponentButton } from "./OpponentView";
+import { Sparkline } from "./Charts";
 
 interface Exercise {
   name: string;
@@ -210,29 +211,140 @@ function SetRow({
   );
 }
 
+function getExerciseHistory(
+  logs: StrengthLogs,
+  dayId: string,
+  exerciseName: string,
+): { date: string; bestWeight: number; bestReps: number; volume: number }[] {
+  const history: { date: string; bestWeight: number; bestReps: number; volume: number }[] = [];
+  const dates = Object.keys(logs).sort();
+  for (const date of dates) {
+    const sets = logs[date]?.[dayId]?.[exerciseName];
+    if (!sets) continue;
+    let bestWeight = 0;
+    let bestReps = 0;
+    let volume = 0;
+    for (const s of sets) {
+      const w = parseFloat(s.weight) || 0;
+      const r = parseInt(s.reps) || 0;
+      if (w > bestWeight || (w === bestWeight && r > bestReps)) {
+        bestWeight = w;
+        bestReps = r;
+      }
+      volume += w * r;
+    }
+    if (bestWeight > 0) history.push({ date, bestWeight, bestReps, volume });
+  }
+  return history;
+}
+
 function ExerciseLogCard({
   exercise,
   sets,
   prevSets,
+  allLogs,
+  dayId,
   onSetUpdate,
 }: {
   exercise: Exercise;
   sets: SetData[];
   prevSets: SetData[] | null;
+  allLogs: StrengthLogs;
+  dayId: string;
   onSetUpdate: (setIdx: number, data: SetData) => void;
 }) {
+  const [showGraph, setShowGraph] = useState(false);
   const setsMatch = exercise.scheme.match(/^(\d+)\s*×/);
   const numSets = setsMatch ? parseInt(setsMatch[1]) : 1;
   const isTimeBased = exercise.scheme.includes("min") || exercise.scheme.includes("sec");
+  const history = showGraph ? getExerciseHistory(allLogs, dayId, exercise.name) : [];
 
   return (
     <div className="exercise-card">
       <div className="exercise-head">
-        <div>
+        <div style={{ flex: 1 }}>
           <div className="exercise-name">{exercise.name}</div>
           <div className="exercise-meta">{exercise.scheme}</div>
         </div>
+        {!isTimeBased && (
+          <button
+            onClick={() => setShowGraph(!showGraph)}
+            style={{
+              background: showGraph ? "var(--accent)" : "transparent",
+              color: showGraph ? "var(--bg)" : "var(--muted)",
+              border: showGraph ? "none" : "1.5px solid var(--faint)",
+              borderRadius: 6,
+              padding: "4px 10px",
+              fontFamily: "var(--mono)",
+              fontSize: 10,
+              cursor: "pointer",
+              transition: "all 0.15s",
+              letterSpacing: "0.06em",
+            }}
+          >
+            {showGraph ? "✕" : "↗ Graph"}
+          </button>
+        )}
       </div>
+
+      {showGraph && history.length >= 2 && (
+        <div style={{
+          padding: "16px 0 12px",
+          borderBottom: "1px solid var(--hairline)",
+        }}>
+          <div style={{
+            display: "flex", justifyContent: "space-between", alignItems: "baseline",
+            marginBottom: 12,
+          }}>
+            <div style={{ fontFamily: "var(--mono)", fontSize: 10, color: "var(--muted)", letterSpacing: "0.1em" }}>
+              BEST SET · {history.length} SESSIONS
+            </div>
+            <div style={{ fontFamily: "var(--serif)", fontSize: 18 }}>
+              {history[history.length - 1].bestWeight} kg
+              <span style={{ fontFamily: "var(--mono)", fontSize: 11, color: "var(--muted)", marginLeft: 4 }}>
+                × {history[history.length - 1].bestReps}
+              </span>
+            </div>
+          </div>
+          <Sparkline values={history.map((h) => h.bestWeight)} color="var(--accent)" height={64} />
+          <div style={{
+            display: "flex", justifyContent: "space-between",
+            fontFamily: "var(--mono)", fontSize: 9, color: "var(--muted)",
+            marginTop: 6,
+          }}>
+            {history.length > 0 && (
+              <>
+                <span>{new Date(history[0].date + "T12:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" })}</span>
+                <span>{new Date(history[history.length - 1].date + "T12:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" })}</span>
+              </>
+            )}
+          </div>
+          {history.length >= 2 && (() => {
+            const first = history[0].bestWeight;
+            const last = history[history.length - 1].bestWeight;
+            const diff = last - first;
+            return diff !== 0 ? (
+              <div style={{
+                fontFamily: "var(--mono)", fontSize: 10, marginTop: 8,
+                color: diff > 0 ? "oklch(0.45 0.15 155)" : "oklch(0.55 0.2 30)",
+              }}>
+                {diff > 0 ? "↑" : "↓"} {Math.abs(diff)} kg since first session
+              </div>
+            ) : null;
+          })()}
+        </div>
+      )}
+
+      {showGraph && history.length < 2 && (
+        <div style={{
+          padding: "20px 0",
+          fontFamily: "var(--mono)", fontSize: 11, color: "var(--muted)",
+          textAlign: "center",
+          borderBottom: "1px solid var(--hairline)",
+        }}>
+          Need at least 2 sessions to show a graph
+        </div>
+      )}
 
       {!isTimeBased && (
         <div className="set-list">
@@ -358,6 +470,8 @@ function DayCard({
               exercise={ex}
               sets={dayLog[ex.name] || []}
               prevSets={getLastSession(allLogs, today, day.id, ex.name)}
+              allLogs={allLogs}
+              dayId={day.id}
               onSetUpdate={(setIdx, data) => onSetUpdate(ex.name, setIdx, data)}
             />
           ))}
