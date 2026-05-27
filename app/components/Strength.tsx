@@ -82,7 +82,6 @@ const WEEK: Day[] = [
       { name: "Weighted pull-ups", scheme: "4 × 6–10" },
       { name: "Seated cable row", scheme: "4 × 8–12" },
       { name: "Lat pulldown (neutral/close)", scheme: "3 × 10–12" },
-      { name: "Face pulls", scheme: "3 × 15–20" },
       { name: "Incline DB curl", scheme: "4 × 10–12" },
       { name: "Hammer curl", scheme: "3 × 10–15" },
     ],
