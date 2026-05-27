@@ -3,7 +3,7 @@
 import React, { useState, useCallback } from "react";
 import { useUserData } from "../lib/useUserData";
 import { OpponentButton } from "./OpponentView";
-import { Sparkline } from "./Charts";
+import { LineChart } from "./Charts";
 
 interface Exercise {
   name: string;
@@ -306,19 +306,25 @@ function ExerciseLogCard({
               </span>
             </div>
           </div>
-          <Sparkline values={history.map((h) => h.bestWeight)} color="var(--accent)" height={64} />
-          <div style={{
-            display: "flex", justifyContent: "space-between",
-            fontFamily: "var(--mono)", fontSize: 9, color: "var(--muted)",
-            marginTop: 6,
-          }}>
-            {history.length > 0 && (
-              <>
-                <span>{new Date(history[0].date + "T12:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" })}</span>
-                <span>{new Date(history[history.length - 1].date + "T12:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" })}</span>
-              </>
+          <LineChart
+            width={480}
+            height={160}
+            padding={{ top: 16, right: 16, bottom: 32, left: 44 }}
+            yUnit="KG"
+            yTicks={3}
+            xLabels={history.map((h) =>
+              new Date(h.date + "T12:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" })
             )}
-          </div>
+            series={[{
+              values: history.map((h) => h.bestWeight),
+              color: "var(--accent)",
+              width: 2,
+              fill: true,
+              dots: true,
+              dotR: 3,
+              endLabel: true,
+            }]}
+          />
           {history.length >= 2 && (() => {
             const first = history[0].bestWeight;
             const last = history[history.length - 1].bestWeight;
