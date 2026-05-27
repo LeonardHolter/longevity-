@@ -132,19 +132,43 @@ const WEEK: Day[] = [
   },
 ];
 
+function getLastSession(
+  logs: StrengthLogs,
+  today: string,
+  dayId: string,
+  exerciseName: string,
+): SetData[] | null {
+  const dates = Object.keys(logs).sort().reverse();
+  for (const date of dates) {
+    if (date >= today) continue;
+    const dayData = logs[date]?.[dayId];
+    if (!dayData) continue;
+    const sets = dayData[exerciseName];
+    if (sets && sets.some((s) => s.weight !== "" || s.reps !== "")) return sets;
+  }
+  return null;
+}
+
 function SetRow({
   idx,
   exercise,
   setData,
+  prevSet,
   onUpdate,
 }: {
   idx: number;
   exercise: Exercise;
   setData: SetData;
+  prevSet: SetData | null;
   onUpdate: (data: SetData) => void;
 }) {
   const hasWeight = !exercise.scheme.includes("min") && !exercise.scheme.includes("sec");
   const done = hasWeight ? setData.weight !== "" && setData.reps !== "" : setData.reps !== "";
+  const prevLabel = prevSet
+    ? hasWeight && prevSet.weight && prevSet.reps
+      ? `${prevSet.weight} kg × ${prevSet.reps}`
+      : prevSet.reps || null
+    : null;
 
   return (
     <div className={`set-row${!hasWeight ? " single-col" : ""}`}>
@@ -156,7 +180,7 @@ function SetRow({
             <input
               value={setData.weight}
               onChange={(e) => onUpdate({ ...setData, weight: e.target.value })}
-              placeholder="—"
+              placeholder={prevSet?.weight || "—"}
               inputMode="decimal"
             />
             <span className="set-unit">kg</span>
@@ -169,7 +193,7 @@ function SetRow({
           <input
             value={setData.reps}
             onChange={(e) => onUpdate({ ...setData, reps: e.target.value })}
-            placeholder="—"
+            placeholder={prevSet?.reps || "—"}
             inputMode="numeric"
           />
         </div>
@@ -178,7 +202,9 @@ function SetRow({
         {exercise.scheme}
       </div>
       <div className={`set-status${done ? " done" : ""}`}>
-        {done ? "Logged" : "—"}
+        {done ? "Logged" : prevLabel ? (
+          <span style={{ color: "var(--muted)", fontSize: 10 }}>Last: {prevLabel}</span>
+        ) : "—"}
       </div>
     </div>
   );
@@ -187,10 +213,12 @@ function SetRow({
 function ExerciseLogCard({
   exercise,
   sets,
+  prevSets,
   onSetUpdate,
 }: {
   exercise: Exercise;
   sets: SetData[];
+  prevSets: SetData[] | null;
   onSetUpdate: (setIdx: number, data: SetData) => void;
 }) {
   const setsMatch = exercise.scheme.match(/^(\d+)\s*×/);
@@ -214,6 +242,7 @@ function ExerciseLogCard({
               idx={i + 1}
               exercise={exercise}
               setData={sets[i] || { weight: "", reps: "" }}
+              prevSet={prevSets?.[i] ?? null}
               onUpdate={(data) => onSetUpdate(i, data)}
             />
           ))}
@@ -237,11 +266,15 @@ function ExerciseLogCard({
 function DayCard({
   day,
   dayLog,
+  allLogs,
+  today,
   onSetUpdate,
   onToggleCardio,
 }: {
   day: Day;
   dayLog: Record<string, SetData[]>;
+  allLogs: StrengthLogs;
+  today: string;
   onSetUpdate: (exerciseName: string, setIdx: number, data: SetData) => void;
   onToggleCardio: (exerciseName: string) => void;
 }) {
@@ -324,6 +357,7 @@ function DayCard({
               key={i}
               exercise={ex}
               sets={dayLog[ex.name] || []}
+              prevSets={getLastSession(allLogs, today, day.id, ex.name)}
               onSetUpdate={(setIdx, data) => onSetUpdate(ex.name, setIdx, data)}
             />
           ))}
@@ -498,7 +532,7 @@ export default function Strength() {
           ))}
         </div>
 
-        <DayCard day={currentDay} dayLog={dayLog} onSetUpdate={handleSetUpdate} onToggleCardio={handleToggleCardio} />
+        <DayCard day={currentDay} dayLog={dayLog} allLogs={logs} today={today} onSetUpdate={handleSetUpdate} onToggleCardio={handleToggleCardio} />
 
         {/* Week overview */}
         <div className="divider-label">Week overview</div>
