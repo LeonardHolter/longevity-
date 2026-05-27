@@ -13,6 +13,7 @@ interface Exercise {
 interface SetData {
   weight: string;
   reps: string;
+  ropes?: 1 | 2;
 }
 
 // strengthLogs shape: { "2026-05-17": { "mon": { "Leg press": [{ weight: "100", reps: "10" }, ...] } } }
@@ -133,6 +134,15 @@ const WEEK: Day[] = [
   },
 ];
 
+function isRopeExercise(name: string) {
+  return /rope/i.test(name);
+}
+
+function normalizedWeight(s: SetData): number {
+  const w = parseFloat(s.weight) || 0;
+  return s.ropes === 2 ? w * 2 : w;
+}
+
 function getLastSession(
   logs: StrengthLogs,
   today: string,
@@ -165,9 +175,15 @@ function SetRow({
 }) {
   const hasWeight = !exercise.scheme.includes("min") && !exercise.scheme.includes("sec");
   const done = hasWeight ? setData.weight !== "" && setData.reps !== "" : setData.reps !== "";
+  const isRope = isRopeExercise(exercise.name);
+  const ropeVal = setData.ropes ?? 1;
+
+  const prevNorm = prevSet
+    ? normalizedWeight(prevSet)
+    : 0;
   const prevLabel = prevSet
     ? hasWeight && prevSet.weight && prevSet.reps
-      ? `${prevSet.weight} kg × ${prevSet.reps}`
+      ? `${prevNorm} kg × ${prevSet.reps}`
       : prevSet.reps || null
     : null;
 
@@ -188,6 +204,33 @@ function SetRow({
           </div>
         </div>
       )}
+      {isRope && hasWeight && (
+        <div className="set-cell">
+          <label>Machine</label>
+          <div style={{ display: "flex", gap: 2 }}>
+            {([1, 2] as const).map((n) => (
+              <button
+                key={n}
+                onClick={() => onUpdate({ ...setData, ropes: n })}
+                style={{
+                  flex: 1,
+                  padding: "6px 0",
+                  fontFamily: "var(--mono)",
+                  fontSize: 10,
+                  border: "none",
+                  borderRadius: 4,
+                  cursor: "pointer",
+                  background: ropeVal === n ? "var(--accent)" : "var(--surface-2)",
+                  color: ropeVal === n ? "var(--bg)" : "var(--muted)",
+                  transition: "all 0.15s",
+                }}
+              >
+                {n === 1 ? "1 rope" : "2 ropes"}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
       <div className="set-cell">
         <label>{hasWeight ? "Reps" : "Done"}</label>
         <div className="set-input-wrap">
@@ -203,7 +246,13 @@ function SetRow({
         {exercise.scheme}
       </div>
       <div className={`set-status${done ? " done" : ""}`}>
-        {done ? "Logged" : prevLabel ? (
+        {done ? (
+          isRope ? (
+            <span style={{ fontSize: 10 }}>
+              = {normalizedWeight(setData)} kg eff.
+            </span>
+          ) : "Logged"
+        ) : prevLabel ? (
           <span style={{ color: "var(--muted)", fontSize: 10 }}>Last: {prevLabel}</span>
         ) : "—"}
       </div>
@@ -225,7 +274,7 @@ function getExerciseHistory(
     let bestReps = 0;
     let volume = 0;
     for (const s of sets) {
-      const w = parseFloat(s.weight) || 0;
+      const w = normalizedWeight(s);
       const r = parseInt(s.reps) || 0;
       if (w > bestWeight || (w === bestWeight && r > bestReps)) {
         bestWeight = w;
