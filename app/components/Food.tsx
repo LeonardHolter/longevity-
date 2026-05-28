@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useRef } from "react";
 import { useUserData } from "../lib/useUserData";
 import { OpponentButton } from "./OpponentView";
 
@@ -110,6 +110,9 @@ function hitTargetsAdj(dateStr: string, logs: Record<string, DayLog>) {
 
 export default function Food() {
   const [logs, setLogs, loaded] = useUserData<Record<string, DayLog>>("foodLogs", {});
+  const logsRef = useRef(logs);
+  logsRef.current = logs;
+
   const [selectedDate, setSelectedDate] = useState(todayKey());
   const [customDraft, setCustomDraft] = useState({ name: "", kcal: "", protein: "" });
 
@@ -119,13 +122,17 @@ export default function Food() {
   const isHit = totals.kcal >= adjTargets.kcal && totals.protein >= adjTargets.protein;
 
   const toggleItem = (id: string) => {
-    const log = { ...currentLog };
+    const current = logsRef.current;
+    const dayLog: DayLog = current[selectedDate] || { checked: [], custom: [] };
+    const log = { ...dayLog };
     if (log.checked.includes(id)) {
       log.checked = log.checked.filter((x) => x !== id);
     } else {
       log.checked = [...log.checked, id];
     }
-    setLogs({ ...logs, [selectedDate]: log });
+    const next = { ...current, [selectedDate]: log };
+    logsRef.current = next;
+    setLogs(next);
   };
 
   const addCustom = (e: React.FormEvent) => {
@@ -133,16 +140,24 @@ export default function Food() {
     const kcal = parseInt(customDraft.kcal);
     const protein = parseInt(customDraft.protein);
     if (!customDraft.name || isNaN(kcal)) return;
-    const log = { ...currentLog };
+    const current = logsRef.current;
+    const dayLog: DayLog = current[selectedDate] || { checked: [], custom: [] };
+    const log = { ...dayLog };
     log.custom = [...log.custom, { name: customDraft.name, kcal, protein: isNaN(protein) ? 0 : protein }];
-    setLogs({ ...logs, [selectedDate]: log });
+    const next = { ...current, [selectedDate]: log };
+    logsRef.current = next;
+    setLogs(next);
     setCustomDraft({ name: "", kcal: "", protein: "" });
   };
 
   const removeCustom = (idx: number) => {
-    const log = { ...currentLog };
+    const current = logsRef.current;
+    const dayLog: DayLog = current[selectedDate] || { checked: [], custom: [] };
+    const log = { ...dayLog };
     log.custom = log.custom.filter((_, i) => i !== idx);
-    setLogs({ ...logs, [selectedDate]: log });
+    const next = { ...current, [selectedDate]: log };
+    logsRef.current = next;
+    setLogs(next);
   };
 
   // Last 14 days for the day strip
