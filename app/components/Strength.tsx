@@ -33,74 +33,66 @@ const WEEK: Day[] = [
   {
     id: "mon",
     label: "Monday",
-    tag: "LEGS",
-    duration: "~75 min",
+    tag: "BACK & CHEST",
+    duration: "~60 min",
     type: "lift",
     exercises: [
-      { name: "Leg press", scheme: "4 × 8–12" },
-      { name: "Leg extension", scheme: "3 × 12–15" },
-      { name: "Seated leg curl", scheme: "4 × 8–12" },
-{ name: "Calf raise", scheme: "4 × 10–15" },
+      { name: "Hang-ups", scheme: "3 × 8–14" },
+      { name: "Rows", scheme: "3 × 8–12" },
+      { name: "Pec deck fly", scheme: "3 × 8–12" },
+      { name: "Incline bench press", scheme: "3 × 8–12" },
     ],
-    notes: "Machines only. Plate to chest on back extensions.",
   },
   {
     id: "tue",
     label: "Tuesday",
-    tag: "Z2 RUN",
+    tag: "Z2 CARDIO",
     duration: "30 min",
     type: "cardio",
     exercises: [
-      { name: "Easy warm-up", scheme: "5 min" },
-      { name: "Zone 2 run", scheme: "25 min @ 120–140 bpm" },
-      { name: "Cool-down", scheme: "5 min" },
-      { name: "Couch stretch", scheme: "2 min/side" },
+      { name: "Zone 2 cardio", scheme: "30 min @ 120–140 bpm" },
     ],
-    notes: "Conversational pace. Anti-lordosis work at the end.",
+    notes: "Conversational pace. Keep heart rate in zone 2.",
   },
   {
     id: "wed",
     label: "Wednesday",
-    tag: "PUSH",
-    duration: "~75 min",
+    tag: "BICEPS & SHOULDERS",
+    duration: "~60 min",
     type: "lift",
     exercises: [
-      { name: "Barbell bench press", scheme: "4 × 6–10" },
-      { name: "Seated DB shoulder press", scheme: "3 × 8–12" },
-      { name: "Incline DB press", scheme: "3 × 8–12" },
-      { name: "Lateral raises", scheme: "4 × 12–20" },
-      { name: "Triceps rope pushdown", scheme: "3 × 10–15" },
+      { name: "Bicep curls", scheme: "3 × 6–10" },
+      { name: "Hammer curls", scheme: "1 × 6–10" },
+      { name: "Dumbbell shoulder press", scheme: "3 × 6–10" },
+      { name: "Forearm curls (dumbbells)", scheme: "3 × 8–12" },
     ],
+    notes: "6–10 reps per set. Hammer curls to finish off biceps.",
   },
   {
     id: "thu",
     label: "Thursday",
-    tag: "PULL",
-    duration: "~75 min",
+    tag: "TRICEPS & CHEST",
+    duration: "~60 min",
     type: "lift",
     exercises: [
-      { name: "Weighted pull-ups", scheme: "4 × 6–10" },
-      { name: "Seated cable row", scheme: "4 × 8–12" },
-      { name: "Lat pulldown (neutral/close)", scheme: "3 × 10–12" },
-      { name: "Incline DB curl", scheme: "4 × 10–12" },
-      { name: "Hammer curl", scheme: "3 × 10–15" },
+      { name: "Tricep rope pushdown", scheme: "3 × 8–12" },
+      { name: "Wide chest fly", scheme: "3 × 8–12" },
+      { name: "Incline bench press", scheme: "3 × 8–12" },
     ],
   },
   {
     id: "fri",
     label: "Friday",
-    tag: "ABS",
-    duration: "~25 min",
+    tag: "LEGS & ABS",
+    duration: "~60 min",
     type: "lift",
     exercises: [
-      { name: "Hanging leg raises", scheme: "4 × 8–12" },
-      { name: "Lying leg raises", scheme: "3 × 12–15" },
-      { name: "Crunches", scheme: "4 × 15–20" },
-      { name: "Dead bug", scheme: "3 × 8/side" },
-      { name: "Pallof press", scheme: "3 × 10/side" },
-      { name: "Side plank", scheme: "3 × 30–45 sec/side" },
+      { name: "Leg press", scheme: "3 × 8–12" },
+      { name: "Leg extension", scheme: "3 × 10–15" },
+      { name: "Leg curls", scheme: "3 × 10–15" },
+      { name: "Ab crunches (mat)", scheme: "3 × 15–20" },
     ],
-    notes: "Posterior tilt on hanging leg raises.",
+    notes: "Machines for leg work. Crunches on mat.",
   },
   {
     id: "sat",
@@ -120,16 +112,13 @@ const WEEK: Day[] = [
   {
     id: "sun",
     label: "Sunday",
-    tag: "Z2 RUN",
+    tag: "Z2 CARDIO",
     duration: "30 min",
     type: "cardio",
     exercises: [
-      { name: "Easy warm-up", scheme: "5 min" },
-      { name: "Zone 2 run", scheme: "25 min @ 120–140 bpm" },
-      { name: "Cool-down", scheme: "5 min" },
-      { name: "Couch stretch", scheme: "2 min/side" },
+      { name: "Zone 2 cardio", scheme: "30 min @ 120–140 bpm" },
     ],
-    notes: "Conversational pace. Anti-lordosis work at the end.",
+    notes: "Conversational pace. Easy effort.",
   },
 ];
 
@@ -614,7 +603,7 @@ export default function Strength() {
             Lift the <em>needle</em>
           </h1>
           <p className="page-sub">
-            Legs · Push · Pull · Abs · Z2 cardio · Norwegian 4×4 HIIT.
+            Back & Chest · Biceps & Shoulders · Triceps & Chest · Legs & Abs · Z2 cardio · Norwegian 4×4.
             Progressive overload builds muscle and bone density past 30.
           </p>
         </div>
