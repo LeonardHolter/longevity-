@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth, clerkClient } from "@clerk/nextjs/server";
+import { getDb, ensureSchema } from "@/app/lib/db";
 
 /**
  * GET /api/user/opponent?keys=weightEntries,weightPlan,foodLogs,strengthLogs
@@ -24,13 +25,24 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "no_opponent", name: null, data: {} }, { status: 200 });
   }
 
-  const meta = (opponent.privateMetadata || {}) as Record<string, unknown>;
   const pub = (opponent.publicMetadata || {}) as Record<string, unknown>;
   const whoopStats = (pub.whoopStats as Record<string, unknown>) || {};
 
+  // Read opponent's data from Postgres
+  await ensureSchema();
+  const sql = getDb();
+
+  const rows = keys.length > 0
+    ? await sql`
+        SELECT key, value FROM user_data
+        WHERE user_id = ${opponent.id} AND key = ANY(${keys})
+      `
+    : [];
+
   const result: Record<string, unknown> = {};
   for (const key of keys) {
-    result[key] = meta[key] ?? null;
+    const row = (rows as Record<string, unknown>[]).find((r) => r.key === key);
+    result[key] = row ? row.value : null;
   }
 
   return NextResponse.json({
