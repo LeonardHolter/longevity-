@@ -38,6 +38,14 @@ export function useUserData<T>(key: string, fallback: T): [T, (value: T) => void
         hasFetched.current = true;
         const remote = res[key];
         if (remote !== null && remote !== undefined) {
+          // If data was written locally very recently (within 5s), a pending
+          // sendBeacon/save may not have reached the server yet — keep local
+          // data to avoid overwriting with stale API response.
+          const lastWrite = parseInt(localStorage.getItem(`helix-${key}-t`) || "0");
+          if (Date.now() - lastWrite < 5000) {
+            setLoaded(true);
+            return;
+          }
           // Server has data — use it as source of truth
           setData(remote as T);
           latestValue.current = remote as T;
@@ -71,6 +79,7 @@ export function useUserData<T>(key: string, fallback: T): [T, (value: T) => void
 
       // Persist locally immediately
       localStorage.setItem(`helix-${key}`, JSON.stringify(value));
+      localStorage.setItem(`helix-${key}-t`, String(Date.now()));
 
       // Debounce API call (500ms)
       if (saveTimer.current) clearTimeout(saveTimer.current);
