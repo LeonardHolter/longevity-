@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useRef } from "react";
 import { useUserData } from "../lib/useUserData";
 import { OpponentButton } from "./OpponentView";
 import { LineChart } from "./Charts";
@@ -556,15 +556,21 @@ export default function Strength() {
   const [activeDay, setActiveDay] = useState(dayIds[mappedIdx] || "mon");
   const currentDay = WEEK.find((d) => d.id === activeDay)!;
 
-  const today = new Date().toISOString().slice(0, 10);
+  const now = new Date();
+  const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
   const [logs, setLogs] = useUserData<StrengthLogs>("strengthLogs", {});
+
+  // Keep a ref that always has the latest logs so callbacks never read stale state
+  const logsRef = useRef(logs);
+  logsRef.current = logs;
 
   const todayLogs = logs[today] || {};
   const dayLog = todayLogs[activeDay] || {};
 
   const handleSetUpdate = useCallback(
     (exerciseName: string, setIdx: number, data: SetData) => {
-      const newLogs = { ...logs };
+      const current = logsRef.current;
+      const newLogs = { ...current };
       if (!newLogs[today]) newLogs[today] = {};
       if (!newLogs[today][activeDay]) newLogs[today][activeDay] = {};
       const exSets = [...(newLogs[today][activeDay][exerciseName] || [])];
@@ -574,24 +580,27 @@ export default function Strength() {
       }
       exSets[setIdx] = data;
       newLogs[today][activeDay][exerciseName] = exSets;
+      logsRef.current = newLogs;
       setLogs(newLogs);
     },
-    [logs, setLogs, today, activeDay]
+    [setLogs, today, activeDay]
   );
 
   const handleToggleCardio = useCallback(
     (exerciseName: string) => {
-      const newLogs = { ...logs };
+      const current = logsRef.current;
+      const newLogs = { ...current };
       if (!newLogs[today]) newLogs[today] = {};
       if (!newLogs[today][activeDay]) newLogs[today][activeDay] = {};
-      const current = newLogs[today][activeDay][exerciseName] || [];
-      const isChecked = current.length > 0 && current[0].reps === "✓";
+      const prev = newLogs[today][activeDay][exerciseName] || [];
+      const isChecked = prev.length > 0 && prev[0].reps === "✓";
       newLogs[today][activeDay][exerciseName] = isChecked
         ? []
         : [{ weight: "", reps: "✓" }];
+      logsRef.current = newLogs;
       setLogs(newLogs);
     },
-    [logs, setLogs, today, activeDay]
+    [setLogs, today, activeDay]
   );
 
   return (
@@ -614,7 +623,8 @@ export default function Strength() {
             dataKey="strengthLogs"
             renderOpponent={(data, name) => {
               const sLogs = (data as StrengthLogs | null) || {};
-              const todayKey = new Date().toISOString().slice(0, 10);
+              const _n = new Date();
+              const todayKey = `${_n.getFullYear()}-${String(_n.getMonth() + 1).padStart(2, "0")}-${String(_n.getDate()).padStart(2, "0")}`;
               const todayData = sLogs[todayKey] || {};
               const dayId = activeDay;
               const dayData = todayData[dayId] || {};

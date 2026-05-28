@@ -26,7 +26,8 @@ export default function Weight() {
     e.preventDefault();
     const v = parseFloat(draft);
     if (isNaN(v) || v < 20 || v > 300) return;
-    const today = new Date().toISOString().slice(0, 10);
+    const _n = new Date();
+    const today = `${_n.getFullYear()}-${String(_n.getMonth() + 1).padStart(2, "0")}-${String(_n.getDate()).padStart(2, "0")}`;
     // Replace if already logged today, otherwise add
     const updated = entries.filter((en) => en.date !== today);
     updated.push({ date: today, w: v });

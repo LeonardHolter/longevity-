@@ -182,7 +182,8 @@ export default function Alzheimer() {
         setBestScore(score);
       }
       // Save to game history
-      const today = new Date().toISOString().slice(0, 10);
+      const _n = new Date();
+      const today = `${_n.getFullYear()}-${String(_n.getMonth() + 1).padStart(2, "0")}-${String(_n.getDate()).padStart(2, "0")}`;
       setGameHistory([...gameHistory, { date: today, score }]);
       // Sync to server for compete
       const avg = history.length
