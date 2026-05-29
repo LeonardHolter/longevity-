@@ -71,18 +71,6 @@ const WEEK: Day[] = [
   {
     id: "thu",
     label: "Thursday",
-    tag: "TRICEPS & CHEST",
-    duration: "~60 min",
-    type: "lift",
-    exercises: [
-      { name: "Tricep rope pushdown", scheme: "3 × 8–12" },
-      { name: "Wide chest fly", scheme: "3 × 8–12" },
-      { name: "Incline bench press", scheme: "3 × 8–12" },
-    ],
-  },
-  {
-    id: "fri",
-    label: "Friday",
     tag: "LEGS & ABS",
     duration: "~60 min",
     type: "lift",
@@ -94,6 +82,18 @@ const WEEK: Day[] = [
       { name: "Leg raises", scheme: "3 × 10–15" },
     ],
     notes: "Machines for leg work. Crunches on mat.",
+  },
+  {
+    id: "fri",
+    label: "Friday",
+    tag: "TRICEPS & CHEST",
+    duration: "~60 min",
+    type: "lift",
+    exercises: [
+      { name: "Tricep rope pushdown", scheme: "3 × 8–12" },
+      { name: "Wide chest fly", scheme: "3 × 8–12" },
+      { name: "Incline bench press", scheme: "3 × 8–12" },
+    ],
   },
   {
     id: "sat",
