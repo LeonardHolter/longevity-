@@ -91,6 +91,7 @@ const WEEK: Day[] = [
       { name: "Leg extension", scheme: "3 × 10–15" },
       { name: "Leg curls", scheme: "3 × 10–15" },
       { name: "Ab crunches (mat)", scheme: "3 × 15–20" },
+      { name: "Leg raises", scheme: "3 × 10–15" },
     ],
     notes: "Machines for leg work. Crunches on mat.",
   },
