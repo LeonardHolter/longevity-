@@ -193,7 +193,7 @@ export default function Weight() {
               <input
                 className="log-input"
                 value={planDraft.weeklyGain}
-                onChange={(e) => setPlanDraft({ ...planDraft, weeklyGain: e.target.value })}
+                onChange={(e) => setPlanDraft({ ...planDraft, weeklyGain: e.target.value.replace(",", ".") })}
                 inputMode="decimal"
                 style={{ width: 100 }}
               />
@@ -265,7 +265,7 @@ export default function Weight() {
             className="log-input"
             placeholder="75.0"
             value={draft}
-            onChange={(e) => setDraft(e.target.value)}
+            onChange={(e) => setDraft(e.target.value.replace(",", "."))}
             inputMode="decimal"
           />
           <span style={{ fontFamily: "var(--mono)", fontSize: 11, color: "var(--muted)" }}>

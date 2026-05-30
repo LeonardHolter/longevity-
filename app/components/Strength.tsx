@@ -185,7 +185,7 @@ function SetRow({
           <div className="set-input-wrap">
             <input
               value={setData.weight}
-              onChange={(e) => onUpdate({ ...setData, weight: e.target.value })}
+              onChange={(e) => onUpdate({ ...setData, weight: e.target.value.replace(",", ".") })}
               placeholder={prevSet?.weight || "—"}
               inputMode="decimal"
             />
