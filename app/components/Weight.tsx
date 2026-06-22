@@ -89,6 +89,30 @@ export default function Weight() {
     [entries]
   );
 
+  // Weekly averages (Mon–Sun)
+  const weeklyAvgs = useMemo(() => {
+    if (entries.length === 0) return [];
+    const weeks: Record<string, number[]> = {};
+    for (const e of entries) {
+      const d = new Date(e.date + "T12:00:00");
+      const day = d.getDay();
+      const diff = day === 0 ? 6 : day - 1; // days since Monday
+      const mon = new Date(d);
+      mon.setDate(mon.getDate() - diff);
+      const weekKey = `${mon.getFullYear()}-${String(mon.getMonth() + 1).padStart(2, "0")}-${String(mon.getDate()).padStart(2, "0")}`;
+      if (!weeks[weekKey]) weeks[weekKey] = [];
+      weeks[weekKey].push(e.w);
+    }
+    return Object.entries(weeks)
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([mondayDate, weights]) => {
+        const avg = weights.reduce((s, w) => s + w, 0) / weights.length;
+        const sun = new Date(mondayDate + "T12:00:00");
+        sun.setDate(sun.getDate() + 6);
+        return { mondayDate, avg, count: weights.length, sundayDate: `${sun.getFullYear()}-${String(sun.getMonth() + 1).padStart(2, "0")}-${String(sun.getDate()).padStart(2, "0")}` };
+      });
+  }, [entries]);
+
   // Chart
   const hasChart = entries.length >= 2;
 
@@ -309,6 +333,66 @@ export default function Weight() {
 
             <WeightChart entries={entries} movingAvg={movingAvg} targetWeight={targetWeight} />
           </div>
+        )}
+
+        {/* Weekly averages */}
+        {weeklyAvgs.length > 0 && (
+          <>
+            <div className="divider-label">Weekly averages</div>
+            <div className="card" style={{ padding: 0 }}>
+              {[...weeklyAvgs].reverse().map((wk, i, arr) => {
+                const prev = arr[i + 1];
+                const delta = prev ? wk.avg - prev.avg : null;
+                const monLabel = new Date(wk.mondayDate + "T12:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" });
+                const sunLabel = new Date(wk.sundayDate + "T12:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" });
+                const isCurrentWeek = i === 0;
+                return (
+                  <div
+                    key={wk.mondayDate}
+                    style={{
+                      display: "grid",
+                      gridTemplateColumns: "1.6fr 1fr 0.8fr 0.8fr",
+                      padding: "16px 24px",
+                      borderBottom: i < arr.length - 1 ? "1px solid var(--hairline)" : "0",
+                      alignItems: "center",
+                      background: isCurrentWeek ? "var(--surface-2)" : "transparent",
+                    }}
+                  >
+                    <div>
+                      <div style={{ fontFamily: "var(--serif)", fontStyle: "italic", fontSize: 15 }}>
+                        {monLabel} – {sunLabel}
+                      </div>
+                      {isCurrentWeek && (
+                        <div style={{ fontFamily: "var(--mono)", fontSize: 9, letterSpacing: "0.12em", color: "var(--accent)", marginTop: 2 }}>
+                          THIS WEEK
+                        </div>
+                      )}
+                    </div>
+                    <div style={{ fontFamily: "var(--serif)", fontSize: 22, letterSpacing: "-0.02em" }}>
+                      {wk.avg.toFixed(2)}{" "}
+                      <span style={{ fontFamily: "var(--mono)", fontSize: 11, color: "var(--muted)" }}>kg</span>
+                    </div>
+                    <div style={{
+                      fontFamily: "var(--mono)",
+                      fontSize: 11,
+                      color: delta == null ? "var(--faint)" : delta > 0 ? "var(--accent)" : delta < 0 ? "var(--danger)" : "var(--muted)",
+                      textAlign: "right",
+                    }}>
+                      {delta == null ? "—" : `${delta > 0 ? "+" : ""}${delta.toFixed(2)} kg`}
+                    </div>
+                    <div style={{
+                      fontFamily: "var(--mono)",
+                      fontSize: 10,
+                      color: "var(--muted)",
+                      textAlign: "right",
+                    }}>
+                      {wk.count} weigh-in{wk.count !== 1 ? "s" : ""}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </>
         )}
 
         {/* Recent entries */}
