@@ -13,7 +13,7 @@ async function fetchAll(): Promise<Company[]> {
   while (true) {
     const { data } = await supabase
       .from('companies')
-      .select('amount_of_calls,who_called,loi_sent')
+      .select('amount_of_calls,who_called,loi_sent,reach_out_response')
       .range(from, from + PAGE - 1)
     const rows = (data as Company[]) ?? []
     all.push(...rows)
@@ -26,9 +26,11 @@ async function fetchAll(): Promise<Company[]> {
 export default async function StatsPage() {
   const companies = await fetchAll()
 
-  const callerMap: Record<string, { calls: number; lois: number }> = {}
+  const callerMap: Record<string, { calls: number; lois: number; demos: number; answered: number }> = {}
   let totalCalls = 0
   let totalLois = 0
+  let totalAnswered = 0
+  let totalDemos = 0
 
   for (const c of companies) {
     const calls = c.amount_of_calls ?? 0
@@ -36,22 +38,33 @@ export default async function StatsPage() {
       totalCalls += calls
       if (c.loi_sent) totalLois++
       const name = c.who_called ?? 'Unknown'
-      if (!callerMap[name]) callerMap[name] = { calls: 0, lois: 0 }
+      if (!callerMap[name]) callerMap[name] = { calls: 0, lois: 0, demos: 0, answered: 0 }
       callerMap[name].calls += calls
       if (c.loi_sent) callerMap[name].lois++
-    }
 
+      const res = c.reach_out_response
+      const wasAnswered = res && res !== 'Not called' && res !== 'Did not pick up'
+      if (wasAnswered) {
+        totalAnswered++
+        callerMap[name].answered++
+      }
+      if (res === 'Intro-meeting wanted') {
+        totalDemos++
+        callerMap[name].demos++
+      }
+    }
   }
 
   const activeMembers = new Set(TEAM_MEMBERS.map(m => m.toLowerCase()))
 
   const callers = Object.entries(callerMap)
-    .map(([name, { calls, lois }]) => ({ name, calls, lois }))
+    .map(([name, { calls, lois, demos, answered }]) => ({ name, calls, lois, demos, answered }))
     .filter(c => activeMembers.has(c.name.toLowerCase()))
     .sort((a, b) => b.calls - a.calls)
 
   const maxCalls = callers[0]?.calls ?? 1
   const overallLoiRate = totalCalls > 0 ? (totalLois / totalCalls * 100).toFixed(2) : '0.00'
+  const overallDemoRate = totalAnswered > 0 ? (totalDemos / totalAnswered * 100).toFixed(1) : '0.0'
 
   const colorMap: Record<string, string> = {
     leonard: 'bg-blue-500',
@@ -71,10 +84,11 @@ export default async function StatsPage() {
         </div>
 
         {/* Top KPIs */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           <KPI label="Total Calls" value={totalCalls.toLocaleString()} />
           <KPI label="LOIs Sent" value={totalLois.toString()} color="text-purple-400" />
           <KPI label="Calls to LOI" value={`${overallLoiRate}%`} color="text-green-400" sub={`${totalLois} LOI / ${totalCalls} calls`} />
+          <KPI label="Demo %" value={`${overallDemoRate}%`} color="text-blue-400" sub={`${totalDemos} demos / ${totalAnswered} answered`} />
         </div>
 
         {/* Calls leaderboard */}
@@ -85,6 +99,7 @@ export default async function StatsPage() {
               <p className="text-gray-600 text-sm">No calls yet</p>
             ) : callers.map((c, i) => {
               const loiRate = c.calls > 0 ? (c.lois / c.calls * 100).toFixed(2) : '0.00'
+              const demoRate = c.answered > 0 ? (c.demos / c.answered * 100).toFixed(1) : '0.0'
               const barColor = colorMap[c.name.toLowerCase()] ?? 'bg-indigo-500'
               return (
                 <div key={c.name} className="flex items-center gap-3">
@@ -98,6 +113,7 @@ export default async function StatsPage() {
                   <div className="flex items-center gap-2 shrink-0">
                     <span className="text-sm font-bold tabular-nums text-white w-10 text-right">{c.calls}</span>
                     <span className="text-xs text-gray-500 w-20 text-right">LOI {loiRate}%</span>
+                    <span className="text-xs text-blue-400 w-20 text-right">Demo {demoRate}%</span>
                   </div>
                 </div>
               )
