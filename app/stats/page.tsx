@@ -63,7 +63,7 @@ export default async function StatsPage() {
     .sort((a, b) => b.calls - a.calls)
 
   const maxCalls = callers[0]?.calls ?? 1
-  const overallLoiRate = totalCalls > 0 ? (totalLois / totalCalls * 100).toFixed(2) : '0.00'
+  const overallLoiRate = totalCalls > 0 ? (totalLois / totalCalls * 100).toFixed(1) : '0.0'
   const overallDemoRate = totalAnswered > 0 ? (totalDemos / totalAnswered * 100).toFixed(1) : '0.0'
 
   const colorMap: Record<string, string> = {
@@ -98,7 +98,7 @@ export default async function StatsPage() {
             {callers.length === 0 ? (
               <p className="text-gray-600 text-sm">No calls yet</p>
             ) : callers.map((c, i) => {
-              const loiRate = c.calls > 0 ? (c.lois / c.calls * 100).toFixed(2) : '0.00'
+              const loiRate = c.calls > 0 ? (c.lois / c.calls * 100).toFixed(1) : '0.0'
               const demoRate = c.answered > 0 ? (c.demos / c.answered * 100).toFixed(1) : '0.0'
               const barColor = colorMap[c.name.toLowerCase()] ?? 'bg-indigo-500'
               return (
