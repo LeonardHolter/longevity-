@@ -1,7 +1,8 @@
 "use client";
 
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useCallback } from "react";
 import { useUserData } from "../lib/useUserData";
+import { downloadCsv } from "../lib/csv";
 import { OpponentButton } from "./OpponentView";
 
 interface WeightEntry {
@@ -113,6 +114,30 @@ export default function Weight() {
       });
   }, [entries]);
 
+  const exportWeight = useCallback(() => {
+    const headers = ["Date", "Weight (kg)", "7-day Avg (kg)", "Weekly Avg (kg)", "Week Start"];
+    const weekMap: Record<string, { avg: number; mondayDate: string }> = {};
+    for (const wk of weeklyAvgs) {
+      const d = new Date(wk.mondayDate + "T12:00:00");
+      const sun = new Date(d);
+      sun.setDate(sun.getDate() + 6);
+      for (let i = 0; i < 7; i++) {
+        const cur = new Date(d);
+        cur.setDate(cur.getDate() + i);
+        const key = `${cur.getFullYear()}-${String(cur.getMonth() + 1).padStart(2, "0")}-${String(cur.getDate()).padStart(2, "0")}`;
+        weekMap[key] = { avg: wk.avg, mondayDate: wk.mondayDate };
+      }
+    }
+    const rows = entries.map((e, i) => [
+      e.date,
+      e.w.toFixed(2),
+      movingAvg[i].toFixed(2),
+      weekMap[e.date] ? weekMap[e.date].avg.toFixed(2) : "",
+      weekMap[e.date] ? weekMap[e.date].mondayDate : "",
+    ]);
+    downloadCsv("helix-weight.csv", headers, rows);
+  }, [entries, movingAvg, weeklyAvgs]);
+
   // Chart
   const hasChart = entries.length >= 2;
 
@@ -187,6 +212,15 @@ export default function Weight() {
               );
             }}
           />
+          {entries.length > 0 && (
+            <button
+              onClick={exportWeight}
+              className="chip"
+              style={{ cursor: "pointer", border: "1.5px solid var(--faint)" }}
+            >
+              ↓ Export CSV
+            </button>
+          )}
         </div>
       </div>
 

@@ -2,6 +2,7 @@
 
 import React, { useState, useCallback, useRef } from "react";
 import { useUserData } from "../lib/useUserData";
+import { downloadCsv } from "../lib/csv";
 import { OpponentButton } from "./OpponentView";
 import { LineChart } from "./Charts";
 
@@ -593,6 +594,37 @@ export default function Strength() {
     [setLogs, today, activeDay]
   );
 
+  const exportStrength = useCallback(() => {
+    const headers = ["Date", "Day", "Exercise", "Set", "Weight (kg)", "Reps", "Effective Weight (kg)"];
+    const rows: string[][] = [];
+    const dayLabels: Record<string, string> = {};
+    for (const d of WEEK) dayLabels[d.id] = d.label;
+
+    const dates = Object.keys(logs).sort();
+    for (const date of dates) {
+      const dayEntries = logs[date];
+      for (const dayId of Object.keys(dayEntries)) {
+        const exercises = dayEntries[dayId];
+        for (const [exName, sets] of Object.entries(exercises)) {
+          (sets as SetData[]).forEach((s, i) => {
+            if (!s.weight && !s.reps) return;
+            const effW = normalizedWeight(s);
+            rows.push([
+              date,
+              dayLabels[dayId] || dayId,
+              exName,
+              String(i + 1),
+              s.weight || "",
+              s.reps || "",
+              effW > 0 ? String(effW) : "",
+            ]);
+          });
+        }
+      }
+    }
+    downloadCsv("helix-strength.csv", headers, rows);
+  }, [logs]);
+
   return (
     <div>
       <div className="page-head">
@@ -676,6 +708,15 @@ export default function Strength() {
               );
             }}
           />
+          {Object.keys(logs).length > 0 && (
+            <button
+              onClick={exportStrength}
+              className="chip"
+              style={{ cursor: "pointer", border: "1.5px solid var(--faint)" }}
+            >
+              ↓ Export CSV
+            </button>
+          )}
         </div>
       </div>
 
