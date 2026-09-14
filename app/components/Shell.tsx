@@ -11,12 +11,9 @@ interface ShellProps {
 }
 
 const items = [
-  { id: "today", label: "Today", short: "Today", num: "01" },
-  { id: "dashboard", label: "Healthspan", short: "Health", num: "02" },
-  { id: "alzheimer", label: "Alzheimer prevention", short: "Brain", num: "03" },
-  { id: "strength", label: "Strength", short: "Lift", num: "04" },
-  { id: "weight", label: "Weight", short: "Weight", num: "05" },
-  { id: "food", label: "Food log", short: "Food", num: "06" },
+  { id: "strength", label: "Strength", short: "Lift", num: "01" },
+  { id: "weight", label: "Weight", short: "Weight", num: "02" },
+  { id: "food", label: "Food log", short: "Food", num: "03" },
 ];
 
 export default function Shell({ route, setRoute, children }: ShellProps) {
