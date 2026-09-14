@@ -8,12 +8,12 @@ import Dashboard from "./components/Dashboard";
 import Strength from "./components/Strength";
 import Weight from "./components/Weight";
 import Food from "./components/Food";
-import Compete from "./components/Compete";
+import Today from "./components/Today";
 import Alzheimer from "./components/Alzheimer";
 import { useWhoop, WhoopProvider } from "./lib/useWhoop";
 
 function AuthenticatedApp() {
-  const [route, setRoute] = useState("compete");
+  const [route, setRoute] = useState("today");
   const whoop = useWhoop();
 
   return (
@@ -23,7 +23,7 @@ function AuthenticatedApp() {
         {route === "strength" && <Strength />}
         {route === "weight" && <Weight />}
         {route === "food" && <Food />}
-        {route === "compete" && <Compete onNavigate={setRoute} />}
+        {route === "today" && <Today onNavigate={setRoute} />}
         {route === "alzheimer" && <Alzheimer />}
       </Shell>
     </WhoopProvider>

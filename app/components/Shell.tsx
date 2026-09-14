@@ -11,7 +11,7 @@ interface ShellProps {
 }
 
 const items = [
-  { id: "compete", label: "Compete", short: "Compete", num: "01" },
+  { id: "today", label: "Today", short: "Today", num: "01" },
   { id: "dashboard", label: "Healthspan", short: "Health", num: "02" },
   { id: "alzheimer", label: "Alzheimer prevention", short: "Brain", num: "03" },
   { id: "strength", label: "Strength", short: "Lift", num: "04" },

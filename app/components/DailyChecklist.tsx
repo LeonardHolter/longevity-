@@ -2,6 +2,7 @@
 
 import React from "react";
 import { useUserData } from "../lib/useUserData";
+import { TEMPLATE_ITEMS, KCAL_TARGET, PROTEIN_TARGET } from "./Food";
 
 interface DayLog {
   checked: string[];
@@ -15,18 +16,9 @@ interface SetData {
 
 type StrengthLogs = Record<string, Record<string, Record<string, SetData[]>>>;
 
-const KCAL_TARGET = 3000;
-const PROTEIN_TARGET = 130;
-
-// Same item list as Food.tsx for calorie calculation
-const TEMPLATE_KCAL: Record<string, number> = {
-  b1: 390, b2: 330, b3: 190, b4: 120, b5: 105, b6: 150,
-  l1: 340, l2: 15, l3: 260, l4: 30, l5: 20, l6: 10, l7: 60,
-};
-const TEMPLATE_PROTEIN: Record<string, number> = {
-  b1: 30, b2: 12, b3: 8, b4: 24, b5: 1, b6: 10,
-  l1: 36, l2: 0, l3: 5, l4: 1, l5: 0, l6: 0, l7: 0,
-};
+// Derived from the template in Food.tsx so both stay in sync
+const TEMPLATE_KCAL: Record<string, number> = Object.fromEntries(TEMPLATE_ITEMS.map((t) => [t.id, t.kcal]));
+const TEMPLATE_PROTEIN: Record<string, number> = Object.fromEntries(TEMPLATE_ITEMS.map((t) => [t.id, t.protein]));
 
 function getFoodTotals(log: DayLog | undefined) {
   let kcal = 0, protein = 0;
@@ -84,7 +76,7 @@ export default function DailyChecklist() {
     },
     {
       id: "food",
-      label: "Hit 3,000 kcal + 130g protein",
+      label: `Hit ${KCAL_TARGET.toLocaleString()} kcal + ${PROTEIN_TARGET}g protein`,
       detail: foodStarted ? `${foodTotals.kcal} kcal · ${foodTotals.protein}g so far` : "Not started",
       done: foodDone,
       route: "food",

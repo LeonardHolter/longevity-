@@ -1,9 +1,8 @@
 "use client";
 
-import React, { useState, useMemo, useCallback } from "react";
+import React, { useState, useMemo, useCallback, useEffect } from "react";
 import { useUserData } from "../lib/useUserData";
 import { downloadCsv } from "../lib/csv";
-import { OpponentButton } from "./OpponentView";
 
 interface WeightEntry {
   date: string; // ISO date string
@@ -12,23 +11,55 @@ interface WeightEntry {
 
 interface WeightPlan {
   startWeight: number;
-  weeklyGain: number; // kg per week
+  startDate?: string; // ISO date the plan was set
+  weeklyChange: number; // kg per week — negative for a cut
   weeks: number;
+  targetWeight?: number;
+  /** @deprecated legacy field from the gain-plan era */
+  weeklyGain?: number;
+}
+
+// Current goal: cut through Nov 8 — 8 weeks at 0.4 kg/week down to ~68.5 kg
+const DEFAULT_PLAN = { targetWeight: "68.5", weeklyChange: "-0.4", weeks: "8" };
+const RESET_EPOCH = "2026-09-13";
+
+function planRate(p: WeightPlan): number {
+  return p.weeklyChange ?? p.weeklyGain ?? 0;
+}
+
+function planTarget(p: WeightPlan): number {
+  return p.targetWeight ?? p.startWeight + planRate(p) * p.weeks;
+}
+
+function isoToday(): string {
+  const n = new Date();
+  return `${n.getFullYear()}-${String(n.getMonth() + 1).padStart(2, "0")}-${String(n.getDate()).padStart(2, "0")}`;
 }
 
 export default function Weight() {
   const [entries, setEntries, loadedEntries] = useUserData<WeightEntry[]>("weightEntries", []);
   const [plan, setPlan, loadedPlan] = useUserData<WeightPlan | null>("weightPlan", null);
   const [draft, setDraft] = useState("");
-  const [planDraft, setPlanDraft] = useState({ weeklyGain: "0.3", weeks: "16" });
+  const [planDraft, setPlanDraft] = useState(DEFAULT_PLAN);
+  const [epoch, setEpoch, loadedEpoch] = useUserData<string>("weightEpoch", "");
   const loaded = loadedEntries && loadedPlan;
+
+  // One-time reset (2026-09-13): wipe pre-cut weigh-ins and the old plan so the
+  // cut through Nov 8 starts from a clean chart. Syncs to the server, so it
+  // runs once per account, not per device.
+  useEffect(() => {
+    if (!loaded || !loadedEpoch || epoch === RESET_EPOCH) return;
+    setEntries([]);
+    setPlan(null);
+    setEpoch(RESET_EPOCH);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loaded, loadedEpoch, epoch]);
 
   const submitWeight = (e: React.FormEvent) => {
     e.preventDefault();
     const v = parseFloat(draft);
     if (isNaN(v) || v < 20 || v > 300) return;
-    const _n = new Date();
-    const today = `${_n.getFullYear()}-${String(_n.getMonth() + 1).padStart(2, "0")}-${String(_n.getDate()).padStart(2, "0")}`;
+    const today = isoToday();
     // Replace if already logged today, otherwise add
     const updated = entries.filter((en) => en.date !== today);
     updated.push({ date: today, w: v });
@@ -38,46 +69,70 @@ export default function Weight() {
 
     // If no plan exists yet, set start weight
     if (!plan) {
-      const newPlan: WeightPlan = {
+      setPlan({
         startWeight: v,
-        weeklyGain: parseFloat(planDraft.weeklyGain) || 0.3,
-        weeks: parseInt(planDraft.weeks) || 16,
-      };
-      setPlan(newPlan);
+        startDate: today,
+        weeklyChange: parseFloat(planDraft.weeklyChange) || -0.4,
+        weeks: parseInt(planDraft.weeks) || 8,
+        targetWeight: parseFloat(planDraft.targetWeight) || undefined,
+      });
     }
   };
 
   const submitPlan = (e: React.FormEvent) => {
     e.preventDefault();
-    const weeklyGain = parseFloat(planDraft.weeklyGain);
+    const weeklyChange = parseFloat(planDraft.weeklyChange);
     const weeks = parseInt(planDraft.weeks);
-    if (isNaN(weeklyGain) || isNaN(weeks) || weeks < 1) return;
-    const startWeight = entries.length > 0 ? entries[0].w : 0;
-    const newPlan: WeightPlan = { startWeight, weeklyGain, weeks };
-    setPlan(newPlan);
+    const target = parseFloat(planDraft.targetWeight);
+    if (isNaN(weeklyChange) || isNaN(weeks) || weeks < 1) return;
+    const startWeight = entries.length > 0 ? entries[entries.length - 1].w : 0;
+    setPlan({
+      startWeight,
+      startDate: isoToday(),
+      weeklyChange,
+      weeks,
+      targetWeight: isNaN(target) ? undefined : target,
+    });
   };
 
+  const rate = plan ? planRate(plan) : 0;
+  const isCut = rate < 0;
+  // Sign that counts as "on goal" for coloring deltas
+  const goodSign = isCut ? -1 : 1;
+  const deltaColor = (d: number | null) =>
+    d == null ? "var(--faint)" : d === 0 ? "var(--muted)" : Math.sign(d) === goodSign ? "var(--accent)" : "var(--danger)";
+
   const current = entries.length > 0 ? entries[entries.length - 1].w : null;
-  const startW = entries.length > 0 ? entries[0].w : null;
-  const totalGain = current && startW ? (current - startW).toFixed(1) : null;
+  const startW = plan ? plan.startWeight : entries.length > 0 ? entries[0].w : null;
+  const totalChange = current != null && startW != null ? (current - startW).toFixed(1) : null;
 
-  const targetWeight = plan
-    ? plan.startWeight + plan.weeklyGain * plan.weeks
-    : null;
-  const remaining = current && targetWeight ? (targetWeight - current).toFixed(1) : null;
+  const targetWeight = plan ? planTarget(plan) : null;
+  const remaining = current != null && targetWeight != null ? (targetWeight - current).toFixed(1) : null;
 
-  // Weeks elapsed
+  // Weeks elapsed since the plan started (or since first entry, for legacy plans)
   const weeksElapsed = useMemo(() => {
-    if (entries.length < 2) return 0;
-    const first = new Date(entries[0].date).getTime();
-    const last = new Date(entries[entries.length - 1].date).getTime();
+    if (entries.length === 0) return 0;
+    const startIso = plan?.startDate ?? entries[0].date;
+    const first = new Date(startIso + "T12:00:00").getTime();
+    const last = new Date(entries[entries.length - 1].date + "T12:00:00").getTime();
     return Math.max(0, (last - first) / (7 * 24 * 3600 * 1000));
-  }, [entries]);
+  }, [entries, plan]);
 
   const actualWeeklyRate = useMemo(() => {
-    if (weeksElapsed < 0.5 || !totalGain) return null;
-    return (parseFloat(totalGain) / weeksElapsed).toFixed(2);
-  }, [weeksElapsed, totalGain]);
+    if (weeksElapsed < 0.5 || totalChange == null) return null;
+    return (parseFloat(totalChange) / weeksElapsed).toFixed(2);
+  }, [weeksElapsed, totalChange]);
+
+  // Where the plan says you should be today
+  const paceWeight = useMemo(() => {
+    if (!plan || !plan.startDate) return null;
+    const now = new Date(isoToday() + "T12:00:00").getTime();
+    const start = new Date(plan.startDate + "T12:00:00").getTime();
+    const w = Math.min(plan.weeks, Math.max(0, (now - start) / (7 * 24 * 3600 * 1000)));
+    return plan.startWeight + rate * w;
+  }, [plan, rate]);
+
+  const weeksLeft = plan ? Math.max(0, plan.weeks - weeksElapsed) : null;
 
   // 7-day moving average
   const movingAvg = useMemo(
@@ -162,56 +217,18 @@ export default function Weight() {
       <div className="page-head">
         <div>
           <div className="page-eyebrow">
-            Body composition · daily morning weigh-in
+            Body composition · weigh in every morning
           </div>
           <h1 className="page-title">
             Weight, <em>over time</em>
           </h1>
           <p className="page-sub">
             {plan
-              ? `Gaining ${plan.weeklyGain} kg/week over ${plan.weeks} weeks. Target: ${(plan.startWeight + plan.weeklyGain * plan.weeks).toFixed(1)} kg.`
-              : "Set your weekly gain target and duration to start tracking progress."}
+              ? `${isCut ? "Losing" : "Gaining"} ${Math.abs(rate)} kg/week over ${plan.weeks} weeks. Target: ${targetWeight!.toFixed(1)} kg.`
+              : "Cut through Nov 8. Log your first morning weigh-in to lock in the plan."}
           </p>
         </div>
         <div className="page-chips">
-          <OpponentButton
-            dataKey="weightEntries"
-            renderOpponent={(data, name) => {
-              const entries = (data as { date: string; w: number }[] | null) || [];
-              if (entries.length === 0) {
-                return <div style={{ color: "var(--muted)", fontFamily: "var(--serif)", fontSize: 16 }}>{name} has no weigh-ins yet.</div>;
-              }
-              const current = entries[entries.length - 1];
-              const first = entries[0];
-              const delta = (current.w - first.w).toFixed(1);
-              return (
-                <div>
-                  <div style={{ fontFamily: "var(--serif)", fontSize: 16, marginBottom: 16 }}>{name}&apos;s weight</div>
-                  <div style={{ display: "flex", gap: 24, marginBottom: 20 }}>
-                    <div>
-                      <div style={{ fontFamily: "var(--mono)", fontSize: 10, color: "var(--muted)" }}>CURRENT</div>
-                      <div style={{ fontFamily: "var(--serif)", fontSize: 28, marginTop: 4 }}>{current.w.toFixed(1)} <span style={{ fontFamily: "var(--mono)", fontSize: 11, color: "var(--muted)" }}>kg</span></div>
-                    </div>
-                    <div>
-                      <div style={{ fontFamily: "var(--mono)", fontSize: 10, color: "var(--muted)" }}>CHANGE</div>
-                      <div style={{ fontFamily: "var(--serif)", fontSize: 28, marginTop: 4 }}>{Number(delta) >= 0 ? "+" : ""}{delta} <span style={{ fontFamily: "var(--mono)", fontSize: 11, color: "var(--muted)" }}>kg</span></div>
-                    </div>
-                    <div>
-                      <div style={{ fontFamily: "var(--mono)", fontSize: 10, color: "var(--muted)" }}>ENTRIES</div>
-                      <div style={{ fontFamily: "var(--serif)", fontSize: 28, marginTop: 4 }}>{entries.length}</div>
-                    </div>
-                  </div>
-                  <div className="divider-label">Recent</div>
-                  {[...entries].reverse().slice(0, 7).map((e, i) => (
-                    <div key={i} style={{ display: "flex", justifyContent: "space-between", padding: "10px 0", borderBottom: "1px solid var(--hairline)" }}>
-                      <div style={{ fontFamily: "var(--serif)", fontSize: 14 }}>{new Date(e.date + "T00:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" })}</div>
-                      <div style={{ fontFamily: "var(--serif)", fontSize: 14 }}>{e.w.toFixed(1)} kg</div>
-                    </div>
-                  ))}
-                </div>
-              );
-            }}
-          />
           {entries.length > 0 && (
             <button
               onClick={exportWeight}
@@ -234,7 +251,7 @@ export default function Weight() {
             color: "var(--muted)",
             marginBottom: 16,
           }}>
-            {plan ? "GAIN PLAN" : "SET YOUR PLAN"}
+            {plan ? (isCut ? "CUT PLAN" : "GAIN PLAN") : "SET YOUR PLAN"}
           </div>
 
           <form onSubmit={submitPlan} style={{ display: "flex", gap: 16, alignItems: "end", flexWrap: "wrap" }}>
@@ -246,12 +263,30 @@ export default function Weight() {
                 color: "var(--muted)",
                 marginBottom: 6,
               }}>
-                Weekly gain (kg)
+                Target weight (kg)
               </label>
               <input
                 className="log-input"
-                value={planDraft.weeklyGain}
-                onChange={(e) => setPlanDraft({ ...planDraft, weeklyGain: e.target.value.replace(",", ".") })}
+                value={planDraft.targetWeight}
+                onChange={(e) => setPlanDraft({ ...planDraft, targetWeight: e.target.value.replace(",", ".") })}
+                inputMode="decimal"
+                style={{ width: 100 }}
+              />
+            </div>
+            <div>
+              <label style={{
+                display: "block",
+                fontFamily: "var(--mono)",
+                fontSize: 10,
+                color: "var(--muted)",
+                marginBottom: 6,
+              }}>
+                Weekly change (kg)
+              </label>
+              <input
+                className="log-input"
+                value={planDraft.weeklyChange}
+                onChange={(e) => setPlanDraft({ ...planDraft, weeklyChange: e.target.value.replace(",", ".") })}
                 inputMode="decimal"
                 style={{ width: 100 }}
               />
@@ -303,12 +338,25 @@ export default function Weight() {
               <div>
                 <div style={{ fontFamily: "var(--mono)", fontSize: 10, color: "var(--muted)" }}>REMAINING</div>
                 <div style={{ fontFamily: "var(--serif)", fontSize: 24, marginTop: 4 }}>
-                  {remaining ? `+${remaining}` : "—"} <span style={{ fontFamily: "var(--mono)", fontSize: 11, color: "var(--muted)" }}>kg</span>
+                  {remaining ? `${Number(remaining) > 0 ? "+" : ""}${remaining}` : "—"} <span style={{ fontFamily: "var(--mono)", fontSize: 11, color: "var(--muted)" }}>kg</span>
                 </div>
               </div>
+              {paceWeight != null && (
+                <div>
+                  <div style={{ fontFamily: "var(--mono)", fontSize: 10, color: "var(--muted)" }}>ON PACE</div>
+                  <div style={{ fontFamily: "var(--serif)", fontSize: 24, marginTop: 4 }}>
+                    {paceWeight.toFixed(1)} <span style={{ fontFamily: "var(--mono)", fontSize: 11, color: "var(--muted)" }}>kg</span>
+                  </div>
+                  {weeksLeft != null && (
+                    <div style={{ fontFamily: "var(--mono)", fontSize: 10, color: "var(--muted)", marginTop: 4 }}>
+                      {weeksLeft.toFixed(1)} wk left
+                    </div>
+                  )}
+                </div>
+              )}
               <div>
                 <div style={{ fontFamily: "var(--mono)", fontSize: 10, color: "var(--muted)" }}>ACTUAL RATE</div>
-                <div style={{ fontFamily: "var(--serif)", fontSize: 24, marginTop: 4 }}>
+                <div style={{ fontFamily: "var(--serif)", fontSize: 24, marginTop: 4, color: actualWeeklyRate ? deltaColor(Number(actualWeeklyRate)) : "var(--ink)" }}>
                   {actualWeeklyRate ? `${Number(actualWeeklyRate) >= 0 ? "+" : ""}${actualWeeklyRate}` : "—"} <span style={{ fontFamily: "var(--mono)", fontSize: 11, color: "var(--muted)" }}>kg/wk</span>
                 </div>
               </div>
@@ -372,7 +420,7 @@ export default function Weight() {
         {/* Weekly averages */}
         {weeklyAvgs.length > 0 && (
           <>
-            <div className="divider-label">Weekly averages</div>
+            <div className="divider-label">Weekly averages · read on Sundays</div>
             <div className="card" style={{ padding: 0 }}>
               {[...weeklyAvgs].reverse().map((wk, i, arr) => {
                 const prev = arr[i + 1];
@@ -409,7 +457,7 @@ export default function Weight() {
                     <div style={{
                       fontFamily: "var(--mono)",
                       fontSize: 11,
-                      color: delta == null ? "var(--faint)" : delta > 0 ? "var(--accent)" : delta < 0 ? "var(--danger)" : "var(--muted)",
+                      color: deltaColor(delta),
                       textAlign: "right",
                     }}>
                       {delta == null ? "—" : `${delta > 0 ? "+" : ""}${delta.toFixed(2)} kg`}
@@ -465,7 +513,7 @@ export default function Weight() {
                       <div style={{
                         fontFamily: "var(--mono)",
                         fontSize: 11,
-                        color: delta == null ? "var(--faint)" : Number(delta) > 0 ? "var(--accent)" : "var(--danger)",
+                        color: deltaColor(delta == null ? null : Number(delta)),
                         textAlign: "right",
                       }}>
                         {delta == null ? "—" : `${Number(delta) > 0 ? "+" : ""}${delta} kg`}

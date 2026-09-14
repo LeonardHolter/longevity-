@@ -3,21 +3,23 @@
 import React, { useState, useCallback, useRef } from "react";
 import { useUserData } from "../lib/useUserData";
 import { downloadCsv } from "../lib/csv";
-import { OpponentButton } from "./OpponentView";
 import { LineChart } from "./Charts";
 
 interface Exercise {
   name: string;
   scheme: string;
+  /** Show the added-load column (backpack with books). */
+  loadable?: boolean;
+  /** Log seconds instead of reps. */
+  unit?: "reps" | "sec";
 }
 
 interface SetData {
   weight: string;
   reps: string;
-  ropes?: 1 | 2;
 }
 
-// strengthLogs shape: { "2026-05-17": { "mon": { "Leg press": [{ weight: "100", reps: "10" }, ...] } } }
+// strengthLogs shape: { "2026-09-14": { "mon": { "Dips": [{ weight: "", reps: "8" }, ...] } } }
 type StrengthLogs = Record<string, Record<string, Record<string, SetData[]>>>;
 
 interface Day {
@@ -30,130 +32,118 @@ interface Day {
   notes?: string;
 }
 
-const WEEK: Day[] = [
-  {
-    id: "mon",
-    label: "Monday",
-    tag: "PUSH",
-    duration: "~60 min",
-    type: "lift",
-    exercises: [
-      { name: "Dumbbell bench press", scheme: "4 × 6–10" },
-      { name: "Incline dumbbell press", scheme: "3 × 8–12" },
-      { name: "Dumbbell flyes", scheme: "3 × 10–12" },
-      { name: "Dumbbell shoulder press", scheme: "3 × 8–12" },
-      { name: "Lateral raises", scheme: "3 × 10–12" },
-    ],
-    notes: "Bench at ~30° for incline. Flyes: deep stretch at the bottom, don't chase weight. Superset lateral raises with flyes if short on time.",
-  },
-  {
-    id: "tue",
-    label: "Tuesday",
-    tag: "PULL & ARMS",
-    duration: "~60 min",
-    type: "lift",
-    exercises: [
-      { name: "One-arm dumbbell row", scheme: "4 × 8–12/side" },
-      { name: "Cable lat pulldown", scheme: "3 × 8–12" },
-      { name: "Dumbbell bicep curl", scheme: "3 × 8–12" },
-      { name: "Dips", scheme: "3 × max reps" },
-      { name: "Cable triceps pushdown", scheme: "3 × 10–12" },
-    ],
-    notes: "Rows first — back before arms. Dips: lean torso forward to bias chest. If the cable can't do pulldowns, do chin-ups on the dip bar.",
-  },
-  {
-    id: "wed",
-    label: "Wednesday",
-    tag: "ABS & POSTURE",
-    duration: "~45–60 min",
-    type: "lift",
-    exercises: [
-      { name: "Weighted cable crunch", scheme: "4 × 10–12" },
-      { name: "Leg raises", scheme: "4 × 10–12" },
-      { name: "Pallof press", scheme: "3 × 10/side" },
-      { name: "Cable face pulls", scheme: "3 × 12" },
-    ],
-    notes: "Pallof press: resist rotation, brace hard. Face pulls balance all the pressing — external rotation at the top, pause each rep.",
-  },
-  {
-    id: "thu",
-    label: "Thursday",
-    tag: "REST",
-    duration: "—",
-    type: "cardio",
-    exercises: [
-      { name: "Rest day", scheme: "Recovery" },
-    ],
-    notes: "Full rest. Stretch if you feel like it.",
-  },
-  {
-    id: "fri",
-    label: "Friday",
-    tag: "PUSH",
-    duration: "~60 min",
-    type: "lift",
-    exercises: [
-      { name: "Dumbbell bench press", scheme: "4 × 6–10" },
-      { name: "Incline dumbbell press", scheme: "3 × 8–12" },
-      { name: "Dumbbell flyes", scheme: "3 × 10–12" },
-      { name: "Dumbbell shoulder press", scheme: "3 × 8–12" },
-      { name: "Lateral raises", scheme: "3 × 10–12" },
-    ],
-    notes: "Bench at ~30° for incline. Flyes: deep stretch at the bottom, don't chase weight. Superset lateral raises with flyes if short on time.",
-  },
-  {
-    id: "sat",
-    label: "Saturday",
-    tag: "PULL & ARMS",
-    duration: "~60 min",
-    type: "lift",
-    exercises: [
-      { name: "One-arm dumbbell row", scheme: "4 × 8–12/side" },
-      { name: "Cable lat pulldown", scheme: "3 × 8–12" },
-      { name: "Dumbbell bicep curl", scheme: "3 × 8–12" },
-      { name: "Dips", scheme: "3 × max reps" },
-      { name: "Cable triceps pushdown", scheme: "3 × 10–12" },
-    ],
-    notes: "Rows first — back before arms. Dips: lean torso forward to bias chest. If the cable can't do pulldowns, do chin-ups on the dip bar.",
-  },
-  {
-    id: "sun",
-    label: "Sunday",
-    tag: "ABS & POSTURE",
-    duration: "~45–60 min",
-    type: "lift",
-    exercises: [
-      { name: "Weighted cable crunch", scheme: "4 × 10–12" },
-      { name: "Leg raises", scheme: "4 × 10–12" },
-      { name: "Pallof press", scheme: "3 × 10/side" },
-      { name: "Cable face pulls", scheme: "3 × 12" },
-    ],
-    notes: "Pallof press: resist rotation, brace hard. Face pulls balance all the pressing — external rotation at the top, pause each rep.",
-  },
+const WORKOUT_A: Exercise[] = [
+  { name: "Dips", scheme: "4 × 6–10", loadable: true },
+  { name: "Pull-ups", scheme: "4 × max", loadable: true },
+  { name: "Hanging leg raise", scheme: "3 × 8–12" },
+  { name: "Wall handstand hold", scheme: "3 × 20–30s", unit: "sec" },
 ];
 
-function isRopeExercise(name: string) {
-  return /rope/i.test(name);
+const WORKOUT_B: Exercise[] = [
+  { name: "Push-up progression", scheme: "3 × 8–12" },
+  { name: "Chin-ups", scheme: "4 × max", loadable: true },
+  { name: "L-sit on dip bar", scheme: "3 × 10–20s", unit: "sec" },
+  { name: "Dead hang", scheme: "3 × max", unit: "sec" },
+];
+
+const LADDERS: { name: string; steps: string[] }[] = [
+  { name: "Dips", steps: ["bench dips", "negatives", "full", "backpack with books once you hit 12"] },
+  { name: "Pull / chin", steps: ["negatives", "full", "L-sit pull-ups or backpack once you hit 12"] },
+  { name: "Push-up", steps: ["standard", "diamond", "feet on bed", "pseudo-planche", "pike", "wall handstand push-up"] },
+  { name: "Leg raise", steps: ["knee raise", "straight leg to horizontal", "above horizontal", "toes to bar"] },
+  { name: "L-sit", steps: ["tucked", "one leg out", "full", "then hold longer"] },
+  { name: "Handstand", steps: ["20s", "30", "45", "60", "then HSPU negatives replace the hold"] },
+  { name: "Dead hang", steps: ["30s", "60", "90", "then towel hang"] },
+];
+
+// Week of Mon Sep 14, 2026 lifts A, B, A; the next week B, A, B; alternating.
+const LIFT_ANCHOR = new Date("2026-09-14T12:00:00");
+
+function liftLetters(): ["A", "B", "A"] | ["B", "A", "B"] {
+  const now = new Date();
+  const monday = new Date(now);
+  const dow = now.getDay();
+  monday.setDate(now.getDate() - (dow === 0 ? 6 : dow - 1));
+  monday.setHours(12, 0, 0, 0);
+  const weeks = Math.round((monday.getTime() - LIFT_ANCHOR.getTime()) / (7 * 24 * 3600 * 1000));
+  return ((weeks % 2) + 2) % 2 === 0 ? ["A", "B", "A"] : ["B", "A", "B"];
 }
 
-function normalizedWeight(s: SetData): number {
-  const w = parseFloat(s.weight) || 0;
-  return s.ropes === 2 ? w * 2 : w;
+function buildWeek(): Day[] {
+  const [monW, wedW, friW] = liftLetters();
+  const lift = (letter: "A" | "B") => ({
+    tag: `WORKOUT ${letter}`,
+    duration: "jog · lift · jog",
+    type: "lift" as const,
+    exercises: letter === "A" ? WORKOUT_A : WORKOUT_B,
+    notes: "Jog to the bars easy, lift, jog home easy. Follow the progression ladders below — move up a step when you own the current one.",
+  });
+  return [
+    { id: "mon", label: "Monday", ...lift(monW) },
+    {
+      id: "tue",
+      label: "Tuesday",
+      tag: "EASY RUN",
+      duration: "30 min",
+      type: "cardio",
+      exercises: [{ name: "Easy run", scheme: "30 min" }],
+      notes: "Conversational pace. If you can't talk, slow down.",
+    },
+    { id: "wed", label: "Wednesday", ...lift(wedW) },
+    {
+      id: "thu",
+      label: "Thursday",
+      tag: "4×4 INTERVALS",
+      duration: "~30 min",
+      type: "cardio",
+      exercises: [{ name: "4×4 intervals", scheme: "4 min hard · 3 min easy · × 4" }],
+      notes: "From your door, no bars. Hard means a few words at most; easy means fully conversational.",
+    },
+    { id: "fri", label: "Friday", ...lift(friW) },
+    {
+      id: "sat",
+      label: "Saturday",
+      tag: "LONG RUN",
+      duration: "45–60 min",
+      type: "cardio",
+      exercises: [{ name: "Long easy run", scheme: "45 min" }],
+      notes: "Start at 45 min, add 5 min a week up to 60.",
+    },
+    {
+      id: "sun",
+      label: "Sunday",
+      tag: "MOBILITY",
+      duration: "30 min + walk",
+      type: "cardio",
+      exercises: [
+        { name: "Couch stretch", scheme: "2 min/side" },
+        { name: "Deep squat hold", scheme: "2 min total" },
+        { name: "Calf stretch", scheme: "1 min/side" },
+        { name: "Dead hang", scheme: "accumulate 2 min" },
+        { name: "Shoulder dislocates", scheme: "2 × 10" },
+        { name: "Pigeon", scheme: "2 min/side" },
+        { name: "Walk", scheme: "20–30 min" },
+      ],
+      notes: "Then a walk. Nothing here should hurt — ease into every position.",
+    },
+  ];
 }
+
+const WEEK: Day[] = buildWeek();
 
 function getLastSession(
   logs: StrengthLogs,
   today: string,
-  dayId: string,
   exerciseName: string,
 ): SetData[] | null {
+  // Search every day id — the same workout floats across Mon/Wed/Fri as A/B alternate.
   const dates = Object.keys(logs).sort().reverse();
   for (const date of dates) {
     if (date >= today) continue;
-    const dayData = logs[date]?.[dayId];
-    if (!dayData) continue;
-    const sets = dayData[exerciseName];
-    if (sets && sets.some((s) => s.weight !== "" || s.reps !== "")) return sets;
+    for (const dayId of Object.keys(logs[date])) {
+      const sets = logs[date][dayId]?.[exerciseName];
+      if (sets && sets.some((s) => s.weight !== "" || s.reps !== "")) return sets;
+    }
   }
   return null;
 }
@@ -171,66 +161,33 @@ function SetRow({
   prevSet: SetData | null;
   onUpdate: (data: SetData) => void;
 }) {
-  const hasWeight = !exercise.scheme.includes("min") && !exercise.scheme.includes("sec");
-  const done = hasWeight ? setData.weight !== "" && setData.reps !== "" : setData.reps !== "";
-  const isRope = isRopeExercise(exercise.name);
-  const ropeVal = setData.ropes ?? 1;
+  const showLoad = !!exercise.loadable;
+  const isSec = exercise.unit === "sec";
+  const done = setData.reps !== "";
 
-  const prevNorm = prevSet
-    ? normalizedWeight(prevSet)
-    : 0;
-  const prevLabel = prevSet
-    ? hasWeight && prevSet.weight && prevSet.reps
-      ? `${prevNorm} kg × ${prevSet.reps}`
-      : prevSet.reps || null
+  const prevLabel = prevSet && prevSet.reps
+    ? `${showLoad && prevSet.weight ? `+${prevSet.weight} kg × ` : ""}${prevSet.reps}${isSec ? " s" : ""}`
     : null;
 
   return (
-    <div className={`set-row${!hasWeight ? " single-col" : ""}`}>
+    <div className={`set-row${!showLoad ? " single-col" : ""}`}>
       <div className="set-idx">{idx}</div>
-      {hasWeight && (
+      {showLoad && (
         <div className="set-cell">
-          <label>Weight</label>
+          <label>Load</label>
           <div className="set-input-wrap">
             <input
               value={setData.weight}
               onChange={(e) => onUpdate({ ...setData, weight: e.target.value.replace(",", ".") })}
-              placeholder={prevSet?.weight || "—"}
+              placeholder={prevSet?.weight || "BW"}
               inputMode="decimal"
             />
             <span className="set-unit">kg</span>
           </div>
         </div>
       )}
-      {isRope && hasWeight && (
-        <div className="set-cell">
-          <label>Machine</label>
-          <div style={{ display: "flex", gap: 2 }}>
-            {([1, 2] as const).map((n) => (
-              <button
-                key={n}
-                onClick={() => onUpdate({ ...setData, ropes: n })}
-                style={{
-                  flex: 1,
-                  padding: "6px 0",
-                  fontFamily: "var(--mono)",
-                  fontSize: 10,
-                  border: "none",
-                  borderRadius: 4,
-                  cursor: "pointer",
-                  background: ropeVal === n ? "var(--accent)" : "var(--surface-2)",
-                  color: ropeVal === n ? "var(--bg)" : "var(--muted)",
-                  transition: "all 0.15s",
-                }}
-              >
-                {n === 1 ? "1 rope" : "2 ropes"}
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
       <div className="set-cell">
-        <label>{hasWeight ? "Reps" : "Done"}</label>
+        <label>{isSec ? "Seconds" : "Reps"}</label>
         <div className="set-input-wrap">
           <input
             value={setData.reps}
@@ -244,13 +201,7 @@ function SetRow({
         {exercise.scheme}
       </div>
       <div className={`set-status${done ? " done" : ""}`}>
-        {done ? (
-          isRope ? (
-            <span style={{ fontSize: 10 }}>
-              = {normalizedWeight(setData)} kg eff.
-            </span>
-          ) : "Logged"
-        ) : prevLabel ? (
+        {done ? "Logged" : prevLabel ? (
           <span style={{ color: "var(--muted)", fontSize: 10 }}>Last: {prevLabel}</span>
         ) : "—"}
       </div>
@@ -260,27 +211,24 @@ function SetRow({
 
 function getExerciseHistory(
   logs: StrengthLogs,
-  dayId: string,
   exerciseName: string,
-): { date: string; bestWeight: number; bestReps: number; volume: number }[] {
-  const history: { date: string; bestWeight: number; bestReps: number; volume: number }[] = [];
+): { date: string; bestReps: number; bestLoad: number }[] {
+  const history: { date: string; bestReps: number; bestLoad: number }[] = [];
   const dates = Object.keys(logs).sort();
   for (const date of dates) {
-    const sets = logs[date]?.[dayId]?.[exerciseName];
-    if (!sets) continue;
-    let bestWeight = 0;
     let bestReps = 0;
-    let volume = 0;
-    for (const s of sets) {
-      const w = normalizedWeight(s);
-      const r = parseInt(s.reps) || 0;
-      if (w > bestWeight || (w === bestWeight && r > bestReps)) {
-        bestWeight = w;
-        bestReps = r;
+    let bestLoad = 0;
+    for (const dayId of Object.keys(logs[date])) {
+      const sets = logs[date][dayId]?.[exerciseName];
+      if (!sets) continue;
+      for (const s of sets) {
+        const r = parseInt(s.reps) || 0;
+        const w = parseFloat(s.weight) || 0;
+        if (r > bestReps) bestReps = r;
+        if (w > bestLoad) bestLoad = w;
       }
-      volume += w * r;
     }
-    if (bestWeight > 0) history.push({ date, bestWeight, bestReps, volume });
+    if (bestReps > 0) history.push({ date, bestReps, bestLoad });
   }
   return history;
 }
@@ -290,21 +238,19 @@ function ExerciseLogCard({
   sets,
   prevSets,
   allLogs,
-  dayId,
   onSetUpdate,
 }: {
   exercise: Exercise;
   sets: SetData[];
   prevSets: SetData[] | null;
   allLogs: StrengthLogs;
-  dayId: string;
   onSetUpdate: (setIdx: number, data: SetData) => void;
 }) {
   const [showGraph, setShowGraph] = useState(false);
   const setsMatch = exercise.scheme.match(/^(\d+)\s*×/);
   const numSets = setsMatch ? parseInt(setsMatch[1]) : 1;
-  const isTimeBased = exercise.scheme.includes("min") || exercise.scheme.includes("sec");
-  const history = showGraph ? getExerciseHistory(allLogs, dayId, exercise.name) : [];
+  const isSec = exercise.unit === "sec";
+  const history = showGraph ? getExerciseHistory(allLogs, exercise.name) : [];
 
   return (
     <div className="exercise-card">
@@ -313,25 +259,23 @@ function ExerciseLogCard({
           <div className="exercise-name">{exercise.name}</div>
           <div className="exercise-meta">{exercise.scheme}</div>
         </div>
-        {!isTimeBased && (
-          <button
-            onClick={() => setShowGraph(!showGraph)}
-            style={{
-              background: showGraph ? "var(--accent)" : "transparent",
-              color: showGraph ? "var(--bg)" : "var(--muted)",
-              border: showGraph ? "none" : "1.5px solid var(--faint)",
-              borderRadius: 6,
-              padding: "4px 10px",
-              fontFamily: "var(--mono)",
-              fontSize: 10,
-              cursor: "pointer",
-              transition: "all 0.15s",
-              letterSpacing: "0.06em",
-            }}
-          >
-            {showGraph ? "✕" : "↗ Graph"}
-          </button>
-        )}
+        <button
+          onClick={() => setShowGraph(!showGraph)}
+          style={{
+            background: showGraph ? "var(--accent)" : "transparent",
+            color: showGraph ? "var(--bg)" : "var(--muted)",
+            border: showGraph ? "none" : "1.5px solid var(--faint)",
+            borderRadius: 6,
+            padding: "4px 10px",
+            fontFamily: "var(--mono)",
+            fontSize: 10,
+            cursor: "pointer",
+            transition: "all 0.15s",
+            letterSpacing: "0.06em",
+          }}
+        >
+          {showGraph ? "✕" : "↗ Graph"}
+        </button>
       </div>
 
       {showGraph && history.length >= 2 && (
@@ -347,23 +291,25 @@ function ExerciseLogCard({
               BEST SET · {history.length} SESSIONS
             </div>
             <div style={{ fontFamily: "var(--serif)", fontSize: 18 }}>
-              {history[history.length - 1].bestWeight} kg
-              <span style={{ fontFamily: "var(--mono)", fontSize: 11, color: "var(--muted)", marginLeft: 4 }}>
-                × {history[history.length - 1].bestReps}
-              </span>
+              {history[history.length - 1].bestReps} {isSec ? "sec" : "reps"}
+              {history[history.length - 1].bestLoad > 0 && (
+                <span style={{ fontFamily: "var(--mono)", fontSize: 11, color: "var(--muted)", marginLeft: 4 }}>
+                  +{history[history.length - 1].bestLoad} kg
+                </span>
+              )}
             </div>
           </div>
           <LineChart
             width={480}
             height={160}
             padding={{ top: 16, right: 16, bottom: 32, left: 44 }}
-            yUnit="KG"
+            yUnit={isSec ? "SEC" : "REPS"}
             yTicks={3}
             xLabels={history.map((h) =>
               new Date(h.date + "T12:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" })
             )}
             series={[{
-              values: history.map((h) => h.bestWeight),
+              values: history.map((h) => h.bestReps),
               color: "var(--accent)",
               width: 2,
               fill: true,
@@ -373,15 +319,15 @@ function ExerciseLogCard({
             }]}
           />
           {history.length >= 2 && (() => {
-            const first = history[0].bestWeight;
-            const last = history[history.length - 1].bestWeight;
+            const first = history[0].bestReps;
+            const last = history[history.length - 1].bestReps;
             const diff = last - first;
             return diff !== 0 ? (
               <div style={{
                 fontFamily: "var(--mono)", fontSize: 10, marginTop: 8,
                 color: diff > 0 ? "oklch(0.45 0.15 155)" : "oklch(0.55 0.2 30)",
               }}>
-                {diff > 0 ? "↑" : "↓"} {Math.abs(diff)} kg since first session
+                {diff > 0 ? "↑" : "↓"} {Math.abs(diff)} {isSec ? "sec" : "reps"} since first session
               </div>
             ) : null;
           })()}
@@ -399,31 +345,18 @@ function ExerciseLogCard({
         </div>
       )}
 
-      {!isTimeBased && (
-        <div className="set-list">
-          {Array.from({ length: numSets }, (_, i) => (
-            <SetRow
-              key={i}
-              idx={i + 1}
-              exercise={exercise}
-              setData={sets[i] || { weight: "", reps: "" }}
-              prevSet={prevSets?.[i] ?? null}
-              onUpdate={(data) => onSetUpdate(i, data)}
-            />
-          ))}
-        </div>
-      )}
-
-      {isTimeBased && (
-        <div style={{
-          padding: "16px 0",
-          fontFamily: "var(--mono)",
-          fontSize: 12,
-          color: "var(--muted)",
-        }}>
-          {exercise.scheme}
-        </div>
-      )}
+      <div className="set-list">
+        {Array.from({ length: numSets }, (_, i) => (
+          <SetRow
+            key={i}
+            idx={i + 1}
+            exercise={exercise}
+            setData={sets[i] || { weight: "", reps: "" }}
+            prevSet={prevSets?.[i] ?? null}
+            onUpdate={(data) => onSetUpdate(i, data)}
+          />
+        ))}
+      </div>
     </div>
   );
 }
@@ -522,9 +455,8 @@ function DayCard({
               key={i}
               exercise={ex}
               sets={dayLog[ex.name] || []}
-              prevSets={getLastSession(allLogs, today, day.id, ex.name)}
+              prevSets={getLastSession(allLogs, today, ex.name)}
               allLogs={allLogs}
-              dayId={day.id}
               onSetUpdate={(setIdx, data) => onSetUpdate(ex.name, setIdx, data)}
             />
           ))}
@@ -566,6 +498,8 @@ export default function Strength() {
   const todayLogs = logs[today] || {};
   const dayLog = todayLogs[activeDay] || {};
 
+  const letters = liftLetters();
+
   const handleSetUpdate = useCallback(
     (exerciseName: string, setIdx: number, data: SetData) => {
       const current = logsRef.current;
@@ -603,7 +537,7 @@ export default function Strength() {
   );
 
   const exportStrength = useCallback(() => {
-    const headers = ["Date", "Day", "Exercise", "Set", "Weight (kg)", "Reps", "Effective Weight (kg)"];
+    const headers = ["Date", "Day", "Exercise", "Set", "Load (kg)", "Reps / Secs"];
     const rows: string[][] = [];
     const dayLabels: Record<string, string> = {};
     for (const d of WEEK) dayLabels[d.id] = d.label;
@@ -616,7 +550,6 @@ export default function Strength() {
         for (const [exName, sets] of Object.entries(exercises)) {
           (sets as SetData[]).forEach((s, i) => {
             if (!s.weight && !s.reps) return;
-            const effW = normalizedWeight(s);
             rows.push([
               date,
               dayLabels[dayId] || dayId,
@@ -624,7 +557,6 @@ export default function Strength() {
               String(i + 1),
               s.weight || "",
               s.reps || "",
-              effW > 0 ? String(effW) : "",
             ]);
           });
         }
@@ -638,84 +570,17 @@ export default function Strength() {
       <div className="page-head">
         <div>
           <div className="page-eyebrow">
-            Training · 7-day split
+            Training · bars + running
           </div>
           <h1 className="page-title">
             Lift the <em>needle</em>
           </h1>
           <p className="page-sub">
-            Push · Pull · Legs & Abs · Abs & Posture. Posture-integrated split.
-            Progressive overload builds muscle and bone density past 30.
+            Calisthenics at the bars Mon · Wed · Fri, runs Tue · Thu · Sat, mobility Sunday.
+            This week lifts {letters.join(" · ")} — the pattern flips every week.
           </p>
         </div>
         <div className="page-chips">
-          <OpponentButton
-            dataKey="strengthLogs"
-            renderOpponent={(data, name) => {
-              const sLogs = (data as StrengthLogs | null) || {};
-              const _n = new Date();
-              const todayKey = `${_n.getFullYear()}-${String(_n.getMonth() + 1).padStart(2, "0")}-${String(_n.getDate()).padStart(2, "0")}`;
-              const todayData = sLogs[todayKey] || {};
-              const dayId = activeDay;
-              const dayData = todayData[dayId] || {};
-              const exercises = Object.entries(dayData);
-
-              // Count total days logged
-              const totalDays = Object.keys(sLogs).length;
-
-              return (
-                <div>
-                  <div style={{ fontFamily: "var(--serif)", fontSize: 16, marginBottom: 4 }}>{name}&apos;s workout</div>
-                  <div style={{ fontFamily: "var(--mono)", fontSize: 10, color: "var(--muted)", marginBottom: 20 }}>
-                    {totalDays} days logged total
-                  </div>
-
-                  {exercises.length === 0 ? (
-                    <div style={{ color: "var(--muted)", fontFamily: "var(--serif)", fontSize: 14 }}>
-                      No workout logged today for {currentDay.tag}.
-                    </div>
-                  ) : (
-                    exercises.map(([exName, sets]) => (
-                      <div key={exName} style={{ marginBottom: 16 }}>
-                        <div style={{ fontFamily: "var(--serif)", fontStyle: "italic", fontSize: 16, marginBottom: 8 }}>{exName}</div>
-                        {(sets as SetData[]).map((s, i) => (
-                          s.weight || s.reps ? (
-                            <div key={i} style={{ display: "flex", gap: 16, padding: "6px 0", fontFamily: "var(--mono)", fontSize: 12, color: "var(--ink-2)" }}>
-                              <span style={{ color: "var(--muted)" }}>Set {i + 1}</span>
-                              {s.weight && <span>{s.weight} kg</span>}
-                              {s.reps && <span>× {s.reps}</span>}
-                            </div>
-                          ) : null
-                        ))}
-                      </div>
-                    ))
-                  )}
-
-                  {/* Show last few logged days */}
-                  {totalDays > 0 && (
-                    <>
-                      <div className="divider-label">Recent sessions</div>
-                      {Object.keys(sLogs).sort().reverse().slice(0, 5).map((date) => {
-                        const dayEntries = sLogs[date];
-                        const dayIds = Object.keys(dayEntries);
-                        const totalExercises = dayIds.reduce((sum, did) => sum + Object.keys(dayEntries[did]).length, 0);
-                        return (
-                          <div key={date} style={{ display: "flex", justifyContent: "space-between", padding: "10px 0", borderBottom: "1px solid var(--hairline)" }}>
-                            <div style={{ fontFamily: "var(--serif)", fontSize: 14 }}>
-                              {new Date(date + "T00:00:00").toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" })}
-                            </div>
-                            <div style={{ fontFamily: "var(--mono)", fontSize: 11, color: "var(--muted)" }}>
-                              {totalExercises} exercises
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </>
-                  )}
-                </div>
-              );
-            }}
-          />
           {Object.keys(logs).length > 0 && (
             <button
               onClick={exportStrength}
@@ -785,7 +650,7 @@ export default function Strength() {
                 fontSize: 11,
                 color: "var(--muted)",
               }}>
-                {d.exercises.length} exercises
+                {d.exercises.length} {d.type === "lift" ? "exercises" : d.exercises.length === 1 ? "session" : "items"}
               </div>
               <div className="week-overview-duration" style={{
                 fontFamily: "var(--mono)",
@@ -793,6 +658,29 @@ export default function Strength() {
                 color: "var(--muted)",
               }}>
                 {d.duration}
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Progression ladders */}
+        <div className="divider-label">Progression ladders</div>
+        <div className="card" style={{ padding: 0 }}>
+          {LADDERS.map((l, i) => (
+            <div
+              key={l.name}
+              style={{
+                display: "grid",
+                gridTemplateColumns: "110px 1fr",
+                gap: 16,
+                padding: "14px 24px",
+                borderBottom: i < LADDERS.length - 1 ? "1px solid var(--hairline)" : "none",
+                alignItems: "baseline",
+              }}
+            >
+              <div style={{ fontFamily: "var(--serif)", fontSize: 15 }}>{l.name}</div>
+              <div style={{ fontFamily: "var(--mono)", fontSize: 11, color: "var(--muted)", lineHeight: 1.7 }}>
+                {l.steps.join(" → ")}
               </div>
             </div>
           ))}

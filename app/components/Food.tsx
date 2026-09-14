@@ -2,7 +2,6 @@
 
 import React, { useState, useRef } from "react";
 import { useUserData } from "../lib/useUserData";
-import { OpponentButton } from "./OpponentView";
 
 /* ── types ── */
 interface FoodItem {
@@ -20,26 +19,31 @@ interface DayLog {
 }
 
 /* ── meal templates with macros ── */
-const TEMPLATE_ITEMS: FoodItem[] = [
-  // Breakfast — eggs + smoothie (~1,150 kcal, 80g protein)
-  { id: "b1", meal: "Breakfast", name: "Eggs, scrambled",           measurement: "5 eggs",    kcal: 390, protein: 30 },
-  { id: "b2", meal: "Breakfast", name: "Grovbrød",                  measurement: "3 slices",  kcal: 330, protein: 12 },
-  { id: "b3", meal: "Breakfast", name: "Peanut butter on the bread",measurement: "2 tbsp",    kcal: 190, protein: 8 },
-  { id: "b4", meal: "Breakfast", name: "Whey scoop",                measurement: "1 scoop",   kcal: 120, protein: 24 },
-  { id: "b5", meal: "Breakfast", name: "Banana",                    measurement: "1",         kcal: 105, protein: 1 },
-  { id: "b6", meal: "Breakfast", name: "Milk into the smoothie",    measurement: "3 dl",      kcal: 150, protein: 10 },
-  // Lunch — kjøttdeig + ris (~750 kcal, 55g protein per portion)
-  { id: "l1", meal: "Lunch", name: "Kjøttdeig (10% fat)",   measurement: "½ pack (~200 g)", kcal: 340, protein: 36 },
-  { id: "l2", meal: "Lunch", name: "Tacokrydder",           measurement: "½ packet",        kcal: 15,  protein: 0 },
-  { id: "l3", meal: "Lunch", name: "Rice, cooked",          measurement: "1 dl uncooked",   kcal: 260, protein: 5 },
-  { id: "l4", meal: "Lunch", name: "Paprika",               measurement: "1",               kcal: 30,  protein: 1 },
-  { id: "l5", meal: "Lunch", name: "Onion",                 measurement: "½",               kcal: 20,  protein: 0 },
-  { id: "l6", meal: "Lunch", name: "Tomato",                measurement: "½",               kcal: 10,  protein: 0 },
-  { id: "l7", meal: "Lunch", name: "Olive oil",             measurement: "½ tbsp",          kcal: 60,  protein: 0 },
+export const TEMPLATE_ITEMS: FoodItem[] = [
+  // 7:45 Ferris breakfast (325 kcal, 27g protein)
+  { id: "br1", meal: "Breakfast", name: "4 eggs + pinch of ham, cheese, spinach", measurement: "Ferris · 7:45", kcal: 325, protein: 27 },
+  // 2–3pm smoothie (700 kcal, 70g protein)
+  { id: "sm1", meal: "Smoothie", name: "2 scoops whey · 5 g creatine · 250 ml milk · 50 g oats · 100 g fruit", measurement: "2–3 pm", kcal: 700, protein: 70 },
+  // Hewitt dinner, two plates (1,150 kcal, 75g protein)
+  { id: "dn1", meal: "Dinner", name: "Plate 1 — 2 palms chicken + 1 scoop beans + rice + veg", measurement: "no sauce", kcal: 575, protein: 38 },
+  { id: "dn2", meal: "Dinner", name: "Plate 2 — same again", measurement: "no sauce", kcal: 575, protein: 37 },
+  // One fruit anywhere in the day — checking every box lands exactly on target
+  { id: "fr1", meal: "Anytime", name: "One fruit", measurement: "any time", kcal: 125, protein: 3 },
 ];
 
-const KCAL_TARGET = 3000;
-const PROTEIN_TARGET = 130;
+export const KCAL_TARGET = 2300;
+export const PROTEIN_TARGET = 175;
+
+const MEAL_TITLES: Record<string, string> = {
+  Breakfast: "Eggs at Ferris",
+  Smoothie: "Whey + oats smoothie",
+  Dinner: "Hewitt, two plates",
+  Anytime: "One fruit, anywhere",
+};
+
+const MEAL_NOTES: Record<string, string> = {
+  Dinner: "Fri at Ferris (Hewitt closed 2:30–4:30) · Sun at John Jay",
+};
 
 function localDateStr(d: Date): string {
   const y = d.getFullYear();
@@ -168,7 +172,7 @@ export default function Food() {
     days.push(d);
   }
 
-  const meals = ["Breakfast", "Lunch"];
+  const meals = ["Breakfast", "Smoothie", "Dinner", "Anytime"];
 
   if (!loaded) {
     return (
@@ -206,68 +210,6 @@ export default function Food() {
         </div>
         <div className="page-chips">
           {streak > 0 && <span className="chip live">{streak}-day streak</span>}
-          <OpponentButton
-            dataKey="foodLogs"
-            renderOpponent={(data, name) => {
-              const foodLogs = (data as Record<string, { checked: string[]; custom: { name: string; kcal: number; protein: number }[] }> | null) || {};
-              const today = todayKey();
-              const totals = getDayTotals(foodLogs[today]);
-              const oppAdj = getAdjustedTargets(today, foodLogs);
-              const isHit = totals.kcal >= oppAdj.kcal && totals.protein >= oppAdj.protein;
-
-              // Count streak
-              let oppStreak = 0;
-              for (let i = 0; i < 365; i++) {
-                const d = new Date();
-                d.setDate(d.getDate() - i);
-                if (hitTargetsAdj(dateKey(d), foodLogs)) oppStreak++;
-                else break;
-              }
-
-              // Last 7 days
-              const days7: { date: string; hit: boolean; kcal: number; protein: number }[] = [];
-              for (let i = 6; i >= 0; i--) {
-                const d = new Date();
-                d.setDate(d.getDate() - i);
-                const dk = dateKey(d);
-                const t = getDayTotals(foodLogs[dk]);
-                days7.push({ date: dk, hit: hitTargetsAdj(dk, foodLogs), kcal: t.kcal, protein: t.protein });
-              }
-
-              return (
-                <div>
-                  <div style={{ fontFamily: "var(--serif)", fontSize: 16, marginBottom: 16 }}>{name}&apos;s food log</div>
-                  <div style={{ display: "flex", gap: 24, marginBottom: 20 }}>
-                    <div>
-                      <div style={{ fontFamily: "var(--mono)", fontSize: 10, color: "var(--muted)" }}>TODAY</div>
-                      <div style={{ fontFamily: "var(--serif)", fontSize: 28, marginTop: 4, color: isHit ? "oklch(0.45 0.15 155)" : "var(--ink)" }}>
-                        {totals.kcal} <span style={{ fontFamily: "var(--mono)", fontSize: 11, color: "var(--muted)" }}>kcal</span>
-                      </div>
-                      <div style={{ fontFamily: "var(--mono)", fontSize: 11, color: "var(--muted)" }}>{totals.protein}g protein</div>
-                    </div>
-                    <div>
-                      <div style={{ fontFamily: "var(--mono)", fontSize: 10, color: "var(--muted)" }}>STREAK</div>
-                      <div style={{ fontFamily: "var(--serif)", fontSize: 28, marginTop: 4 }}>{oppStreak}</div>
-                      <div style={{ fontFamily: "var(--mono)", fontSize: 11, color: "var(--muted)" }}>days</div>
-                    </div>
-                  </div>
-                  <div className="divider-label">Last 7 days</div>
-                  {days7.map((d) => (
-                    <div key={d.date} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 0", borderBottom: "1px solid var(--hairline)" }}>
-                      <div style={{ fontFamily: "var(--serif)", fontSize: 14 }}>
-                        {new Date(d.date + "T00:00:00").toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" })}
-                      </div>
-                      <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
-                        <span style={{ fontFamily: "var(--mono)", fontSize: 11, color: "var(--muted)" }}>{d.kcal} kcal</span>
-                        <span style={{ fontFamily: "var(--mono)", fontSize: 11, color: "var(--muted)" }}>{d.protein}g</span>
-                        <span style={{ width: 8, height: 8, borderRadius: "50%", background: d.hit ? "oklch(0.55 0.2 155)" : "var(--hairline)" }} />
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              );
-            }}
-          />
         </div>
       </div>
 
@@ -482,8 +424,13 @@ export default function Food() {
                     {mealName.toUpperCase()} {allChecked && "✓"}
                   </div>
                   <div style={{ fontFamily: "var(--serif)", fontSize: 20, marginTop: 4 }}>
-                    {mealName === "Breakfast" ? "Eggs + smoothie" : "Kjøttdeig + ris"}
+                    {MEAL_TITLES[mealName] ?? mealName}
                   </div>
+                  {MEAL_NOTES[mealName] && (
+                    <div style={{ fontFamily: "var(--mono)", fontSize: 10, color: "var(--muted)", marginTop: 4, fontStyle: "italic" }}>
+                      {MEAL_NOTES[mealName]}
+                    </div>
+                  )}
                 </div>
                 <div style={{ textAlign: "right" }}>
                   <div style={{
