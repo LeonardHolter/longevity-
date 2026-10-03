@@ -8,10 +8,6 @@ import { LineChart } from "./Charts";
 interface Exercise {
   name: string;
   scheme: string;
-  /** Show the added-load column (backpack with books). */
-  loadable?: boolean;
-  /** Log seconds instead of reps. */
-  unit?: "reps" | "sec";
 }
 
 interface SetData {
@@ -19,7 +15,7 @@ interface SetData {
   reps: string;
 }
 
-// strengthLogs shape: { "2026-09-14": { "mon": { "Dips": [{ weight: "", reps: "8" }, ...] } } }
+// strengthLogs shape: { "2026-10-05": { "mon": { "Incline dumbbell press": [{ weight: "20", reps: "8" }, ...] } } }
 type StrengthLogs = Record<string, Record<string, Record<string, SetData[]>>>;
 
 interface Day {
@@ -27,123 +23,110 @@ interface Day {
   label: string;
   tag: string;
   duration: string;
-  type: "lift" | "cardio";
+  type: "lift" | "rest";
   exercises: Exercise[];
   notes?: string;
 }
 
-const WORKOUT_A: Exercise[] = [
-  { name: "Dips", scheme: "4 × 6–10", loadable: true },
-  { name: "Pull-ups", scheme: "4 × max", loadable: true },
-  { name: "Hanging leg raise", scheme: "3 × 8–12" },
-  { name: "Wall handstand hold", scheme: "3 × 20–30s", unit: "sec" },
+const WEEK: Day[] = [
+  {
+    id: "mon",
+    label: "Monday",
+    tag: "PUSH A",
+    duration: "~60 min",
+    type: "lift",
+    exercises: [
+      { name: "Incline dumbbell press", scheme: "3 × 6–10" },
+      { name: "Dips", scheme: "3 × 8–12" },
+      { name: "Seated dumbbell shoulder press", scheme: "3 × 8–10" },
+      { name: "Lateral raise", scheme: "4 × 12–15" },
+      { name: "Triceps pushdown", scheme: "3 × 10–15" },
+    ],
+  },
+  {
+    id: "tue",
+    label: "Tuesday",
+    tag: "PULL A + ABS",
+    duration: "~60 min",
+    type: "lift",
+    exercises: [
+      { name: "Weighted pull-up", scheme: "3 × 6–10" },
+      { name: "Chest-supported row", scheme: "3 × 8–12" },
+      { name: "Rear delt fly", scheme: "3 × 12–15" },
+      { name: "Dumbbell curl", scheme: "3 × 8–12" },
+      { name: "Weighted cable crunch", scheme: "3 × 10–15" },
+    ],
+    notes: "Pull-up: use an assisted machine or band if you can't yet do weighted sets.",
+  },
+  {
+    id: "wed",
+    label: "Wednesday",
+    tag: "REST",
+    duration: "—",
+    type: "rest",
+    exercises: [{ name: "Rest day", scheme: "Recovery" }],
+  },
+  {
+    id: "thu",
+    label: "Thursday",
+    tag: "PUSH B",
+    duration: "~60 min",
+    type: "lift",
+    exercises: [
+      { name: "Overhead press", scheme: "3 × 6–10" },
+      { name: "Flat dumbbell press", scheme: "3 × 8–12" },
+      { name: "Cable fly", scheme: "3 × 10–15" },
+      { name: "Lateral raise", scheme: "4 × 12–15" },
+      { name: "Overhead cable triceps extension", scheme: "3 × 10–15" },
+    ],
+    notes: "Overhead press: barbell or dumbbell, whichever is free.",
+  },
+  {
+    id: "fri",
+    label: "Friday",
+    tag: "PULL B + ABS",
+    duration: "~60 min",
+    type: "lift",
+    exercises: [
+      { name: "Lat pulldown", scheme: "3 × 8–12" },
+      { name: "Seated cable row", scheme: "3 × 10–12" },
+      { name: "Face pull", scheme: "3 × 12–15" },
+      { name: "Incline dumbbell curl", scheme: "3 × 10–12" },
+      { name: "Hammer curl", scheme: "2 × 10–12" },
+      { name: "Hanging leg raise", scheme: "3 × 10–15" },
+    ],
+  },
+  {
+    id: "sat",
+    label: "Saturday",
+    tag: "REST",
+    duration: "—",
+    type: "rest",
+    exercises: [{ name: "Rest day", scheme: "Recovery" }],
+  },
+  {
+    id: "sun",
+    label: "Sunday",
+    tag: "REST",
+    duration: "—",
+    type: "rest",
+    exercises: [{ name: "Rest day", scheme: "Recovery" }],
+  },
 ];
-
-const WORKOUT_B: Exercise[] = [
-  { name: "Push-up progression", scheme: "3 × 8–12" },
-  { name: "Chin-ups", scheme: "4 × max", loadable: true },
-  { name: "L-sit on dip bar", scheme: "3 × 10–20s", unit: "sec" },
-  { name: "Dead hang", scheme: "3 × max", unit: "sec" },
-];
-
-const LADDERS: { name: string; steps: string[] }[] = [
-  { name: "Dips", steps: ["bench dips", "negatives", "full", "backpack with books once you hit 12"] },
-  { name: "Pull / chin", steps: ["negatives", "full", "L-sit pull-ups or backpack once you hit 12"] },
-  { name: "Push-up", steps: ["standard", "diamond", "feet on bed", "pseudo-planche", "pike", "wall handstand push-up"] },
-  { name: "Leg raise", steps: ["knee raise", "straight leg to horizontal", "above horizontal", "toes to bar"] },
-  { name: "L-sit", steps: ["tucked", "one leg out", "full", "then hold longer"] },
-  { name: "Handstand", steps: ["20s", "30", "45", "60", "then HSPU negatives replace the hold"] },
-  { name: "Dead hang", steps: ["30s", "60", "90", "then towel hang"] },
-];
-
-// Week of Mon Sep 14, 2026 lifts A, B, A; the next week B, A, B; alternating.
-const LIFT_ANCHOR = new Date("2026-09-14T12:00:00");
-
-function liftLetters(): ["A", "B", "A"] | ["B", "A", "B"] {
-  const now = new Date();
-  const monday = new Date(now);
-  const dow = now.getDay();
-  monday.setDate(now.getDate() - (dow === 0 ? 6 : dow - 1));
-  monday.setHours(12, 0, 0, 0);
-  const weeks = Math.round((monday.getTime() - LIFT_ANCHOR.getTime()) / (7 * 24 * 3600 * 1000));
-  return ((weeks % 2) + 2) % 2 === 0 ? ["A", "B", "A"] : ["B", "A", "B"];
-}
-
-function buildWeek(): Day[] {
-  const [monW, wedW, friW] = liftLetters();
-  const lift = (letter: "A" | "B") => ({
-    tag: `WORKOUT ${letter}`,
-    duration: "jog · lift · jog",
-    type: "lift" as const,
-    exercises: letter === "A" ? WORKOUT_A : WORKOUT_B,
-    notes: "Jog to the bars easy, lift, jog home easy. Follow the progression ladders below — move up a step when you own the current one.",
-  });
-  return [
-    { id: "mon", label: "Monday", ...lift(monW) },
-    {
-      id: "tue",
-      label: "Tuesday",
-      tag: "EASY RUN",
-      duration: "30 min",
-      type: "cardio",
-      exercises: [{ name: "Easy run", scheme: "30 min" }],
-      notes: "Conversational pace. If you can't talk, slow down.",
-    },
-    { id: "wed", label: "Wednesday", ...lift(wedW) },
-    {
-      id: "thu",
-      label: "Thursday",
-      tag: "4×4 INTERVALS",
-      duration: "~30 min",
-      type: "cardio",
-      exercises: [{ name: "4×4 intervals", scheme: "4 min hard · 3 min easy · × 4" }],
-      notes: "From your door, no bars. Hard means a few words at most; easy means fully conversational.",
-    },
-    { id: "fri", label: "Friday", ...lift(friW) },
-    {
-      id: "sat",
-      label: "Saturday",
-      tag: "LONG RUN",
-      duration: "45–60 min",
-      type: "cardio",
-      exercises: [{ name: "Long easy run", scheme: "45 min" }],
-      notes: "Start at 45 min, add 5 min a week up to 60.",
-    },
-    {
-      id: "sun",
-      label: "Sunday",
-      tag: "MOBILITY",
-      duration: "30 min + walk",
-      type: "cardio",
-      exercises: [
-        { name: "Couch stretch", scheme: "2 min/side" },
-        { name: "Deep squat hold", scheme: "2 min total" },
-        { name: "Calf stretch", scheme: "1 min/side" },
-        { name: "Dead hang", scheme: "accumulate 2 min" },
-        { name: "Shoulder dislocates", scheme: "2 × 10" },
-        { name: "Pigeon", scheme: "2 min/side" },
-        { name: "Walk", scheme: "20–30 min" },
-      ],
-      notes: "Then a walk. Nothing here should hurt — ease into every position.",
-    },
-  ];
-}
-
-const WEEK: Day[] = buildWeek();
 
 function getLastSession(
   logs: StrengthLogs,
   today: string,
+  dayId: string,
   exerciseName: string,
 ): SetData[] | null {
-  // Search every day id — the same workout floats across Mon/Wed/Fri as A/B alternate.
   const dates = Object.keys(logs).sort().reverse();
   for (const date of dates) {
     if (date >= today) continue;
-    for (const dayId of Object.keys(logs[date])) {
-      const sets = logs[date][dayId]?.[exerciseName];
-      if (sets && sets.some((s) => s.weight !== "" || s.reps !== "")) return sets;
-    }
+    const dayData = logs[date]?.[dayId];
+    if (!dayData) continue;
+    const sets = dayData[exerciseName];
+    if (sets && sets.some((s) => s.weight !== "" || s.reps !== "")) return sets;
   }
   return null;
 }
@@ -161,33 +144,29 @@ function SetRow({
   prevSet: SetData | null;
   onUpdate: (data: SetData) => void;
 }) {
-  const showLoad = !!exercise.loadable;
-  const isSec = exercise.unit === "sec";
-  const done = setData.reps !== "";
+  const done = setData.weight !== "" && setData.reps !== "";
 
-  const prevLabel = prevSet && prevSet.reps
-    ? `${showLoad && prevSet.weight ? `+${prevSet.weight} kg × ` : ""}${prevSet.reps}${isSec ? " s" : ""}`
-    : null;
+  const prevLabel = prevSet && prevSet.weight && prevSet.reps
+    ? `${prevSet.weight} kg × ${prevSet.reps}`
+    : prevSet?.reps || null;
 
   return (
-    <div className={`set-row${!showLoad ? " single-col" : ""}`}>
+    <div className="set-row">
       <div className="set-idx">{idx}</div>
-      {showLoad && (
-        <div className="set-cell">
-          <label>Load</label>
-          <div className="set-input-wrap">
-            <input
-              value={setData.weight}
-              onChange={(e) => onUpdate({ ...setData, weight: e.target.value.replace(",", ".") })}
-              placeholder={prevSet?.weight || "BW"}
-              inputMode="decimal"
-            />
-            <span className="set-unit">kg</span>
-          </div>
-        </div>
-      )}
       <div className="set-cell">
-        <label>{isSec ? "Seconds" : "Reps"}</label>
+        <label>Weight</label>
+        <div className="set-input-wrap">
+          <input
+            value={setData.weight}
+            onChange={(e) => onUpdate({ ...setData, weight: e.target.value.replace(",", ".") })}
+            placeholder={prevSet?.weight || "—"}
+            inputMode="decimal"
+          />
+          <span className="set-unit">kg</span>
+        </div>
+      </div>
+      <div className="set-cell">
+        <label>Reps</label>
         <div className="set-input-wrap">
           <input
             value={setData.reps}
@@ -211,24 +190,25 @@ function SetRow({
 
 function getExerciseHistory(
   logs: StrengthLogs,
+  dayId: string,
   exerciseName: string,
-): { date: string; bestReps: number; bestLoad: number }[] {
-  const history: { date: string; bestReps: number; bestLoad: number }[] = [];
+): { date: string; bestWeight: number; bestReps: number }[] {
+  const history: { date: string; bestWeight: number; bestReps: number }[] = [];
   const dates = Object.keys(logs).sort();
   for (const date of dates) {
+    const sets = logs[date]?.[dayId]?.[exerciseName];
+    if (!sets) continue;
+    let bestWeight = 0;
     let bestReps = 0;
-    let bestLoad = 0;
-    for (const dayId of Object.keys(logs[date])) {
-      const sets = logs[date][dayId]?.[exerciseName];
-      if (!sets) continue;
-      for (const s of sets) {
-        const r = parseInt(s.reps) || 0;
-        const w = parseFloat(s.weight) || 0;
-        if (r > bestReps) bestReps = r;
-        if (w > bestLoad) bestLoad = w;
+    for (const s of sets) {
+      const w = parseFloat(s.weight) || 0;
+      const r = parseInt(s.reps) || 0;
+      if (w > bestWeight || (w === bestWeight && r > bestReps)) {
+        bestWeight = w;
+        bestReps = r;
       }
     }
-    if (bestReps > 0) history.push({ date, bestReps, bestLoad });
+    if (bestWeight > 0) history.push({ date, bestWeight, bestReps });
   }
   return history;
 }
@@ -238,19 +218,20 @@ function ExerciseLogCard({
   sets,
   prevSets,
   allLogs,
+  dayId,
   onSetUpdate,
 }: {
   exercise: Exercise;
   sets: SetData[];
   prevSets: SetData[] | null;
   allLogs: StrengthLogs;
+  dayId: string;
   onSetUpdate: (setIdx: number, data: SetData) => void;
 }) {
   const [showGraph, setShowGraph] = useState(false);
   const setsMatch = exercise.scheme.match(/^(\d+)\s*×/);
   const numSets = setsMatch ? parseInt(setsMatch[1]) : 1;
-  const isSec = exercise.unit === "sec";
-  const history = showGraph ? getExerciseHistory(allLogs, exercise.name) : [];
+  const history = showGraph ? getExerciseHistory(allLogs, dayId, exercise.name) : [];
 
   return (
     <div className="exercise-card">
@@ -291,25 +272,23 @@ function ExerciseLogCard({
               BEST SET · {history.length} SESSIONS
             </div>
             <div style={{ fontFamily: "var(--serif)", fontSize: 18 }}>
-              {history[history.length - 1].bestReps} {isSec ? "sec" : "reps"}
-              {history[history.length - 1].bestLoad > 0 && (
-                <span style={{ fontFamily: "var(--mono)", fontSize: 11, color: "var(--muted)", marginLeft: 4 }}>
-                  +{history[history.length - 1].bestLoad} kg
-                </span>
-              )}
+              {history[history.length - 1].bestWeight} kg
+              <span style={{ fontFamily: "var(--mono)", fontSize: 11, color: "var(--muted)", marginLeft: 4 }}>
+                × {history[history.length - 1].bestReps}
+              </span>
             </div>
           </div>
           <LineChart
             width={480}
             height={160}
             padding={{ top: 16, right: 16, bottom: 32, left: 44 }}
-            yUnit={isSec ? "SEC" : "REPS"}
+            yUnit="KG"
             yTicks={3}
             xLabels={history.map((h) =>
               new Date(h.date + "T12:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" })
             )}
             series={[{
-              values: history.map((h) => h.bestReps),
+              values: history.map((h) => h.bestWeight),
               color: "var(--accent)",
               width: 2,
               fill: true,
@@ -319,15 +298,15 @@ function ExerciseLogCard({
             }]}
           />
           {history.length >= 2 && (() => {
-            const first = history[0].bestReps;
-            const last = history[history.length - 1].bestReps;
+            const first = history[0].bestWeight;
+            const last = history[history.length - 1].bestWeight;
             const diff = last - first;
             return diff !== 0 ? (
               <div style={{
                 fontFamily: "var(--mono)", fontSize: 10, marginTop: 8,
                 color: diff > 0 ? "oklch(0.45 0.15 155)" : "oklch(0.55 0.2 30)",
               }}>
-                {diff > 0 ? "↑" : "↓"} {Math.abs(diff)} {isSec ? "sec" : "reps"} since first session
+                {diff > 0 ? "↑" : "↓"} {Math.abs(diff)} kg since first session
               </div>
             ) : null;
           })()}
@@ -367,20 +346,14 @@ function DayCard({
   allLogs,
   today,
   onSetUpdate,
-  onToggleCardio,
 }: {
   day: Day;
   dayLog: Record<string, SetData[]>;
   allLogs: StrengthLogs;
   today: string;
   onSetUpdate: (exerciseName: string, setIdx: number, data: SetData) => void;
-  onToggleCardio: (exerciseName: string) => void;
 }) {
-  const isCardio = day.type === "cardio";
-  const allCardioDone = isCardio && day.exercises.every((ex) => {
-    const sets = dayLog[ex.name] || [];
-    return sets.length > 0 && sets[0].reps === "✓";
-  });
+  const isRest = day.type === "rest";
 
   return (
     <div className="session-shell">
@@ -390,63 +363,19 @@ function DayCard({
           <div className="session-title">
             <span className="session-day-tag">{day.tag}</span>
             <span className="session-group">{day.duration}</span>
-            {isCardio && allCardioDone && (
-              <span style={{
-                fontFamily: "var(--mono)", fontSize: 10, letterSpacing: "0.14em",
-                color: "oklch(0.45 0.15 155)", fontWeight: 600, marginLeft: 12,
-              }}>
-                ✓ DONE
-              </span>
-            )}
           </div>
         </div>
       </div>
 
-      {isCardio ? (
-        <div style={{ padding: "8px 0" }}>
-          {day.exercises.map((ex, i) => {
-            const checked = (dayLog[ex.name] || [])[0]?.reps === "✓";
-            return (
-              <div
-                key={i}
-                onClick={() => onToggleCardio(ex.name)}
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: "32px 1fr auto",
-                  alignItems: "center",
-                  gap: 12,
-                  padding: "12px 0",
-                  borderBottom: i < day.exercises.length - 1 ? "1px solid var(--hairline)" : "none",
-                  cursor: "pointer",
-                  opacity: checked ? 0.5 : 1,
-                  transition: "opacity 0.15s",
-                }}
-              >
-                <div style={{
-                  width: 20, height: 20, borderRadius: 4,
-                  border: checked ? "none" : "1.5px solid var(--faint)",
-                  background: checked ? "oklch(0.55 0.2 155)" : "transparent",
-                  display: "flex", alignItems: "center", justifyContent: "center",
-                  fontSize: 12, color: "var(--bg)", transition: "all 0.15s",
-                }}>
-                  {checked && "✓"}
-                </div>
-                <div style={{
-                  fontFamily: "var(--serif)", fontSize: 16,
-                  textDecoration: checked ? "line-through" : "none",
-                }}>
-                  {ex.name}
-                </div>
-                <div style={{
-                  fontFamily: "var(--mono)",
-                  fontSize: 12,
-                  color: "var(--muted)",
-                }}>
-                  {ex.scheme}
-                </div>
-              </div>
-            );
-          })}
+      {isRest ? (
+        <div style={{
+          padding: "24px 0",
+          fontFamily: "var(--serif)",
+          fontStyle: "italic",
+          fontSize: 16,
+          color: "var(--muted)",
+        }}>
+          Rest. Let the week's work settle.
         </div>
       ) : (
         <div className="exercise-grid">
@@ -455,8 +384,9 @@ function DayCard({
               key={i}
               exercise={ex}
               sets={dayLog[ex.name] || []}
-              prevSets={getLastSession(allLogs, today, ex.name)}
+              prevSets={getLastSession(allLogs, today, day.id, ex.name)}
               allLogs={allLogs}
+              dayId={day.id}
               onSetUpdate={(setIdx, data) => onSetUpdate(ex.name, setIdx, data)}
             />
           ))}
@@ -498,8 +428,6 @@ export default function Strength() {
   const todayLogs = logs[today] || {};
   const dayLog = todayLogs[activeDay] || {};
 
-  const letters = liftLetters();
-
   const handleSetUpdate = useCallback(
     (exerciseName: string, setIdx: number, data: SetData) => {
       const current = logsRef.current;
@@ -519,25 +447,8 @@ export default function Strength() {
     [setLogs, today, activeDay]
   );
 
-  const handleToggleCardio = useCallback(
-    (exerciseName: string) => {
-      const current = logsRef.current;
-      const newLogs = { ...current };
-      if (!newLogs[today]) newLogs[today] = {};
-      if (!newLogs[today][activeDay]) newLogs[today][activeDay] = {};
-      const prev = newLogs[today][activeDay][exerciseName] || [];
-      const isChecked = prev.length > 0 && prev[0].reps === "✓";
-      newLogs[today][activeDay][exerciseName] = isChecked
-        ? []
-        : [{ weight: "", reps: "✓" }];
-      logsRef.current = newLogs;
-      setLogs(newLogs);
-    },
-    [setLogs, today, activeDay]
-  );
-
   const exportStrength = useCallback(() => {
-    const headers = ["Date", "Day", "Exercise", "Set", "Load (kg)", "Reps / Secs"];
+    const headers = ["Date", "Day", "Exercise", "Set", "Weight (kg)", "Reps"];
     const rows: string[][] = [];
     const dayLabels: Record<string, string> = {};
     for (const d of WEEK) dayLabels[d.id] = d.label;
@@ -570,14 +481,14 @@ export default function Strength() {
       <div className="page-head">
         <div>
           <div className="page-eyebrow">
-            Training · bars + running
+            Training · 5-day split
           </div>
           <h1 className="page-title">
             Lift the <em>needle</em>
           </h1>
           <p className="page-sub">
-            Calisthenics at the bars Mon · Wed · Fri, runs Tue · Thu · Sat, mobility Sunday.
-            This week lifts {letters.join(" · ")} — the pattern flips every week.
+            Push A · Pull A + abs · Rest · Push B · Pull B + abs · Rest · Rest.
+            Progressive overload builds muscle and bone density past 30.
           </p>
         </div>
         <div className="page-chips">
@@ -614,7 +525,7 @@ export default function Strength() {
           ))}
         </div>
 
-        <DayCard day={currentDay} dayLog={dayLog} allLogs={logs} today={today} onSetUpdate={handleSetUpdate} onToggleCardio={handleToggleCardio} />
+        <DayCard day={currentDay} dayLog={dayLog} allLogs={logs} today={today} onSetUpdate={handleSetUpdate} />
 
         {/* Week overview */}
         <div className="divider-label">Week overview</div>
@@ -625,7 +536,7 @@ export default function Strength() {
               className="card week-overview-row"
               style={{
                 display: "grid",
-                gridTemplateColumns: "80px 100px 1fr auto",
+                gridTemplateColumns: "80px 120px 1fr auto",
                 alignItems: "center",
                 padding: "14px 20px",
                 cursor: "pointer",
@@ -641,7 +552,7 @@ export default function Strength() {
                 fontFamily: "var(--mono)",
                 fontSize: 10,
                 letterSpacing: "0.1em",
-                color: d.type === "cardio" ? "var(--warm)" : "var(--accent)",
+                color: d.type === "rest" ? "var(--warm)" : "var(--accent)",
               }}>
                 {d.tag}
               </div>
@@ -650,7 +561,7 @@ export default function Strength() {
                 fontSize: 11,
                 color: "var(--muted)",
               }}>
-                {d.exercises.length} {d.type === "lift" ? "exercises" : d.exercises.length === 1 ? "session" : "items"}
+                {d.type === "lift" ? `${d.exercises.length} exercises` : "Recovery"}
               </div>
               <div className="week-overview-duration" style={{
                 fontFamily: "var(--mono)",
@@ -658,29 +569,6 @@ export default function Strength() {
                 color: "var(--muted)",
               }}>
                 {d.duration}
-              </div>
-            </div>
-          ))}
-        </div>
-
-        {/* Progression ladders */}
-        <div className="divider-label">Progression ladders</div>
-        <div className="card" style={{ padding: 0 }}>
-          {LADDERS.map((l, i) => (
-            <div
-              key={l.name}
-              style={{
-                display: "grid",
-                gridTemplateColumns: "110px 1fr",
-                gap: 16,
-                padding: "14px 24px",
-                borderBottom: i < LADDERS.length - 1 ? "1px solid var(--hairline)" : "none",
-                alignItems: "baseline",
-              }}
-            >
-              <div style={{ fontFamily: "var(--serif)", fontSize: 15 }}>{l.name}</div>
-              <div style={{ fontFamily: "var(--mono)", fontSize: 11, color: "var(--muted)", lineHeight: 1.7 }}>
-                {l.steps.join(" → ")}
               </div>
             </div>
           ))}
