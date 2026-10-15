@@ -28,35 +28,41 @@ interface Day {
   notes?: string;
 }
 
+const PUSH_EXERCISES: Exercise[] = [
+  { name: "Incline dumbbell press", scheme: "3 × 6–10" },
+  { name: "Dips", scheme: "3 × 8–12" },
+  { name: "Seated dumbbell shoulder press", scheme: "3 × 8–10" },
+  { name: "Lateral raise", scheme: "4 × 12–15" },
+  { name: "Triceps pushdown", scheme: "3 × 10–15" },
+];
+
+const PULL_EXERCISES: Exercise[] = [
+  { name: "Weighted pull-up", scheme: "3 × 6–10" },
+  { name: "Chest-supported row", scheme: "3 × 8–12" },
+  { name: "Rear delt fly", scheme: "3 × 12–15" },
+  { name: "Dumbbell curl", scheme: "3 × 8–12" },
+  { name: "Weighted cable crunch", scheme: "3 × 10–15" },
+];
+
+const PULL_NOTES = "Pull-up: use an assisted machine or band if you can't yet do weighted sets.";
+
 const WEEK: Day[] = [
   {
     id: "mon",
     label: "Monday",
-    tag: "PUSH A",
+    tag: "PUSH",
     duration: "~60 min",
     type: "lift",
-    exercises: [
-      { name: "Incline dumbbell press", scheme: "3 × 6–10" },
-      { name: "Dips", scheme: "3 × 8–12" },
-      { name: "Seated dumbbell shoulder press", scheme: "3 × 8–10" },
-      { name: "Lateral raise", scheme: "4 × 12–15" },
-      { name: "Triceps pushdown", scheme: "3 × 10–15" },
-    ],
+    exercises: PUSH_EXERCISES,
   },
   {
     id: "tue",
     label: "Tuesday",
-    tag: "PULL A + ABS",
+    tag: "PULL + ABS",
     duration: "~60 min",
     type: "lift",
-    exercises: [
-      { name: "Weighted pull-up", scheme: "3 × 6–10" },
-      { name: "Chest-supported row", scheme: "3 × 8–12" },
-      { name: "Rear delt fly", scheme: "3 × 12–15" },
-      { name: "Dumbbell curl", scheme: "3 × 8–12" },
-      { name: "Weighted cable crunch", scheme: "3 × 10–15" },
-    ],
-    notes: "Pull-up: use an assisted machine or band if you can't yet do weighted sets.",
+    exercises: PULL_EXERCISES,
+    notes: PULL_NOTES,
   },
   {
     id: "wed",
@@ -69,32 +75,19 @@ const WEEK: Day[] = [
   {
     id: "thu",
     label: "Thursday",
-    tag: "PUSH B",
+    tag: "PUSH",
     duration: "~60 min",
     type: "lift",
-    exercises: [
-      { name: "Overhead press", scheme: "3 × 6–10" },
-      { name: "Flat dumbbell press", scheme: "3 × 8–12" },
-      { name: "Cable fly", scheme: "3 × 10–15" },
-      { name: "Lateral raise", scheme: "4 × 12–15" },
-      { name: "Overhead cable triceps extension", scheme: "3 × 10–15" },
-    ],
-    notes: "Overhead press: barbell or dumbbell, whichever is free.",
+    exercises: PUSH_EXERCISES,
   },
   {
     id: "fri",
     label: "Friday",
-    tag: "PULL B + ABS",
+    tag: "PULL + ABS",
     duration: "~60 min",
     type: "lift",
-    exercises: [
-      { name: "Lat pulldown", scheme: "3 × 8–12" },
-      { name: "Seated cable row", scheme: "3 × 10–12" },
-      { name: "Face pull", scheme: "3 × 12–15" },
-      { name: "Incline dumbbell curl", scheme: "3 × 10–12" },
-      { name: "Hammer curl", scheme: "2 × 10–12" },
-      { name: "Hanging leg raise", scheme: "3 × 10–15" },
-    ],
+    exercises: PULL_EXERCISES,
+    notes: PULL_NOTES,
   },
   {
     id: "sat",
@@ -114,19 +107,21 @@ const WEEK: Day[] = [
   },
 ];
 
+// Looks across every day id, not just the current one — Monday and Thursday
+// (and Tuesday/Friday) run the identical exercise list, so "last session"
+// should reflect whichever of the two happened most recently.
 function getLastSession(
   logs: StrengthLogs,
   today: string,
-  dayId: string,
   exerciseName: string,
 ): SetData[] | null {
   const dates = Object.keys(logs).sort().reverse();
   for (const date of dates) {
     if (date >= today) continue;
-    const dayData = logs[date]?.[dayId];
-    if (!dayData) continue;
-    const sets = dayData[exerciseName];
-    if (sets && sets.some((s) => s.weight !== "" || s.reps !== "")) return sets;
+    for (const dayId of Object.keys(logs[date])) {
+      const sets = logs[date][dayId]?.[exerciseName];
+      if (sets && sets.some((s) => s.weight !== "" || s.reps !== "")) return sets;
+    }
   }
   return null;
 }
@@ -188,24 +183,26 @@ function SetRow({
   );
 }
 
+// Also merged across every day id — see getLastSession above.
 function getExerciseHistory(
   logs: StrengthLogs,
-  dayId: string,
   exerciseName: string,
 ): { date: string; bestWeight: number; bestReps: number }[] {
   const history: { date: string; bestWeight: number; bestReps: number }[] = [];
   const dates = Object.keys(logs).sort();
   for (const date of dates) {
-    const sets = logs[date]?.[dayId]?.[exerciseName];
-    if (!sets) continue;
     let bestWeight = 0;
     let bestReps = 0;
-    for (const s of sets) {
-      const w = parseFloat(s.weight) || 0;
-      const r = parseInt(s.reps) || 0;
-      if (w > bestWeight || (w === bestWeight && r > bestReps)) {
-        bestWeight = w;
-        bestReps = r;
+    for (const dayId of Object.keys(logs[date])) {
+      const sets = logs[date][dayId]?.[exerciseName];
+      if (!sets) continue;
+      for (const s of sets) {
+        const w = parseFloat(s.weight) || 0;
+        const r = parseInt(s.reps) || 0;
+        if (w > bestWeight || (w === bestWeight && r > bestReps)) {
+          bestWeight = w;
+          bestReps = r;
+        }
       }
     }
     if (bestWeight > 0) history.push({ date, bestWeight, bestReps });
@@ -218,20 +215,18 @@ function ExerciseLogCard({
   sets,
   prevSets,
   allLogs,
-  dayId,
   onSetUpdate,
 }: {
   exercise: Exercise;
   sets: SetData[];
   prevSets: SetData[] | null;
   allLogs: StrengthLogs;
-  dayId: string;
   onSetUpdate: (setIdx: number, data: SetData) => void;
 }) {
   const [showGraph, setShowGraph] = useState(false);
   const setsMatch = exercise.scheme.match(/^(\d+)\s*×/);
   const numSets = setsMatch ? parseInt(setsMatch[1]) : 1;
-  const history = showGraph ? getExerciseHistory(allLogs, dayId, exercise.name) : [];
+  const history = showGraph ? getExerciseHistory(allLogs, exercise.name) : [];
 
   return (
     <div className="exercise-card">
@@ -384,9 +379,8 @@ function DayCard({
               key={i}
               exercise={ex}
               sets={dayLog[ex.name] || []}
-              prevSets={getLastSession(allLogs, today, day.id, ex.name)}
+              prevSets={getLastSession(allLogs, today, ex.name)}
               allLogs={allLogs}
-              dayId={day.id}
               onSetUpdate={(setIdx, data) => onSetUpdate(ex.name, setIdx, data)}
             />
           ))}
@@ -487,8 +481,10 @@ export default function Strength() {
             Lift the <em>needle</em>
           </h1>
           <p className="page-sub">
-            Push A · Pull A + abs · Rest · Push B · Pull B + abs · Rest · Rest.
-            Progressive overload builds muscle and bone density past 30.
+            Push · Pull + abs · Rest · Push · Pull + abs · Rest · Rest.
+            Monday and Thursday repeat the same push session; Tuesday and Friday
+            repeat the same pull session. Progressive overload builds muscle and
+            bone density past 30.
           </p>
         </div>
         <div className="page-chips">
