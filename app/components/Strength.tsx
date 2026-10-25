@@ -24,7 +24,7 @@ interface Day {
   label: string;
   tag: string;
   duration: string;
-  type: "lift" | "rest";
+  type: "lift" | "activity";
   exercises: Exercise[];
   notes?: string;
 }
@@ -94,18 +94,18 @@ const WEEK: Day[] = [
   {
     id: "sat",
     label: "Saturday",
-    tag: "REST",
+    tag: "RUN",
     duration: "—",
-    type: "rest",
-    exercises: [{ name: "Rest day", scheme: "Recovery", rest: "" }],
+    type: "activity",
+    exercises: [{ name: "Run", scheme: "", rest: "" }],
   },
   {
     id: "sun",
     label: "Sunday",
-    tag: "REST",
+    tag: "BOXING",
     duration: "—",
-    type: "rest",
-    exercises: [{ name: "Rest day", scheme: "Recovery", rest: "" }],
+    type: "activity",
+    exercises: [{ name: "Boxing", scheme: "", rest: "" }],
   },
 ];
 
@@ -353,7 +353,7 @@ function DayCard({
   today: string;
   onSetUpdate: (exerciseName: string, setIdx: number, data: SetData) => void;
 }) {
-  const isRest = day.type === "rest";
+  const isActivity = day.type === "activity";
 
   return (
     <div className="session-shell">
@@ -367,7 +367,7 @@ function DayCard({
         </div>
       </div>
 
-      {isRest ? (
+      {isActivity ? (
         <div style={{
           padding: "24px 0",
           fontFamily: "var(--serif)",
@@ -375,7 +375,7 @@ function DayCard({
           fontSize: 16,
           color: "var(--muted)",
         }}>
-          Rest. Let the week's work settle.
+          {day.exercises[0]?.name}. No sets to log — just get the work in.
         </div>
       ) : (
         <div className="exercise-grid">
@@ -486,7 +486,7 @@ export default function Strength() {
             Lift the <em>needle</em>
           </h1>
           <p className="page-sub">
-            Push · Pull · Legs · Push · Pull · Rest · Rest.
+            Push · Pull · Legs · Push · Pull · Run · Boxing.
             Monday and Thursday repeat the same push session; Tuesday and Friday
             repeat the same pull session. Heavier sets, longer rest — progressive
             overload builds muscle and bone density past 30.
@@ -553,7 +553,7 @@ export default function Strength() {
                 fontFamily: "var(--mono)",
                 fontSize: 10,
                 letterSpacing: "0.1em",
-                color: d.type === "rest" ? "var(--warm)" : "var(--accent)",
+                color: d.type === "activity" ? "var(--warm)" : "var(--accent)",
               }}>
                 {d.tag}
               </div>
@@ -562,7 +562,7 @@ export default function Strength() {
                 fontSize: 11,
                 color: "var(--muted)",
               }}>
-                {d.type === "lift" ? `${d.exercises.length} exercises` : "Recovery"}
+                {d.type === "lift" ? `${d.exercises.length} exercises` : d.exercises[0]?.name}
               </div>
               <div className="week-overview-duration" style={{
                 fontFamily: "var(--mono)",
