@@ -8,6 +8,7 @@ import { LineChart } from "./Charts";
 interface Exercise {
   name: string;
   scheme: string;
+  rest: string;
 }
 
 interface SetData {
@@ -29,22 +30,25 @@ interface Day {
 }
 
 const PUSH_EXERCISES: Exercise[] = [
-  { name: "Incline dumbbell press", scheme: "3 × 6–10" },
-  { name: "Dips", scheme: "3 × 8–12" },
-  { name: "Seated dumbbell shoulder press", scheme: "3 × 8–10" },
-  { name: "Lateral raise", scheme: "4 × 12–15" },
-  { name: "Triceps pushdown", scheme: "3 × 10–15" },
+  { name: "Bench press", scheme: "4 × 6–8", rest: "2.5 min" },
+  { name: "Overhead press", scheme: "3 × 6–8", rest: "2 min" },
+  { name: "Crunch machine", scheme: "3 × 6–8", rest: "60 sec" },
+  { name: "Hanging leg raises", scheme: "3 × 6–8", rest: "60 sec" },
 ];
 
 const PULL_EXERCISES: Exercise[] = [
-  { name: "Weighted pull-up", scheme: "3 × 6–10" },
-  { name: "Chest-supported row", scheme: "3 × 8–12" },
-  { name: "Rear delt fly", scheme: "3 × 12–15" },
-  { name: "Dumbbell curl", scheme: "3 × 8–12" },
-  { name: "Weighted cable crunch", scheme: "3 × 10–15" },
+  { name: "Lat pulldown", scheme: "4 × 6–8", rest: "2 min" },
+  { name: "Cable rows", scheme: "3 × 6–8", rest: "2 min" },
+  { name: "Bicep curls", scheme: "3 × 6–8", rest: "90 sec" },
+  { name: "Hammer curls", scheme: "3 × 6–8", rest: "60 sec" },
 ];
 
-const PULL_NOTES = "Pull-up: use an assisted machine or band if you can't yet do weighted sets.";
+const LEG_EXERCISES: Exercise[] = [
+  { name: "Squat", scheme: "4 × 6–8", rest: "2.5 min" },
+  { name: "Romanian deadlift", scheme: "3 × 6–8", rest: "2 min" },
+  { name: "Leg press", scheme: "3 × 6–8", rest: "2 min" },
+  { name: "Leg curl", scheme: "3 × 6–8", rest: "90 sec" },
+];
 
 const WEEK: Day[] = [
   {
@@ -58,19 +62,18 @@ const WEEK: Day[] = [
   {
     id: "tue",
     label: "Tuesday",
-    tag: "PULL + ABS",
+    tag: "PULL",
     duration: "~60 min",
     type: "lift",
     exercises: PULL_EXERCISES,
-    notes: PULL_NOTES,
   },
   {
     id: "wed",
     label: "Wednesday",
-    tag: "REST",
-    duration: "—",
-    type: "rest",
-    exercises: [{ name: "Rest day", scheme: "Recovery" }],
+    tag: "LEGS",
+    duration: "~60 min",
+    type: "lift",
+    exercises: LEG_EXERCISES,
   },
   {
     id: "thu",
@@ -83,11 +86,10 @@ const WEEK: Day[] = [
   {
     id: "fri",
     label: "Friday",
-    tag: "PULL + ABS",
+    tag: "PULL",
     duration: "~60 min",
     type: "lift",
     exercises: PULL_EXERCISES,
-    notes: PULL_NOTES,
   },
   {
     id: "sat",
@@ -95,7 +97,7 @@ const WEEK: Day[] = [
     tag: "REST",
     duration: "—",
     type: "rest",
-    exercises: [{ name: "Rest day", scheme: "Recovery" }],
+    exercises: [{ name: "Rest day", scheme: "Recovery", rest: "" }],
   },
   {
     id: "sun",
@@ -103,7 +105,7 @@ const WEEK: Day[] = [
     tag: "REST",
     duration: "—",
     type: "rest",
-    exercises: [{ name: "Rest day", scheme: "Recovery" }],
+    exercises: [{ name: "Rest day", scheme: "Recovery", rest: "" }],
   },
 ];
 
@@ -233,7 +235,10 @@ function ExerciseLogCard({
       <div className="exercise-head">
         <div style={{ flex: 1 }}>
           <div className="exercise-name">{exercise.name}</div>
-          <div className="exercise-meta">{exercise.scheme}</div>
+          <div className="exercise-meta">
+            {exercise.scheme}
+            {exercise.rest && ` · Rest ${exercise.rest}`}
+          </div>
         </div>
         <button
           onClick={() => setShowGraph(!showGraph)}
@@ -481,10 +486,10 @@ export default function Strength() {
             Lift the <em>needle</em>
           </h1>
           <p className="page-sub">
-            Push · Pull + abs · Rest · Push · Pull + abs · Rest · Rest.
+            Push · Pull · Legs · Push · Pull · Rest · Rest.
             Monday and Thursday repeat the same push session; Tuesday and Friday
-            repeat the same pull session. Progressive overload builds muscle and
-            bone density past 30.
+            repeat the same pull session. Heavier sets, longer rest — progressive
+            overload builds muscle and bone density past 30.
           </p>
         </div>
         <div className="page-chips">
