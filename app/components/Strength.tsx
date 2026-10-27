@@ -31,7 +31,7 @@ interface Day {
 
 const PUSH_EXERCISES: Exercise[] = [
   { name: "Bench press", scheme: "4 × 6–8", rest: "2.5 min" },
-  { name: "Overhead press", scheme: "3 × 6–8", rest: "2 min" },
+  { name: "Incline press", scheme: "3 × 6–8", rest: "2 min" },
   { name: "Crunch machine", scheme: "3 × 6–8", rest: "60 sec" },
   { name: "Hanging leg raises", scheme: "3 × 6–8", rest: "60 sec" },
 ];
