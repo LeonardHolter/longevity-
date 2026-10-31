@@ -86,10 +86,6 @@ export default function Journal() {
           <h1 className="page-title">
             Training <em>journal</em>
           </h1>
-          <p className="page-sub">
-            Each day, name the one thing holding your training back and what
-            you've done about it. Not tied to any specific workout.
-          </p>
         </div>
       </div>
 
