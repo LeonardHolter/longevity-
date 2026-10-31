@@ -6,6 +6,7 @@ import Login from "./components/Login";
 import Shell from "./components/Shell";
 import Strength from "./components/Strength";
 import Weight from "./components/Weight";
+import Journal from "./components/Journal";
 import { useWhoop, WhoopProvider } from "./lib/useWhoop";
 
 function AuthenticatedApp() {
@@ -17,6 +18,7 @@ function AuthenticatedApp() {
       <Shell route={route} setRoute={setRoute}>
         {route === "strength" && <Strength />}
         {route === "weight" && <Weight />}
+        {route === "journal" && <Journal />}
       </Shell>
     </WhoopProvider>
   );
