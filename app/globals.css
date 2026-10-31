@@ -905,6 +905,31 @@ button { font-family: inherit; cursor: pointer; }
   grid-template-columns: repeat(3, 1fr);
   gap: 18px;
 }
+.journal-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+.journal-card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.journal-textarea {
+  width: 100%;
+  background: transparent;
+  border: 1px solid var(--hairline-2);
+  border-radius: 8px;
+  padding: 10px 12px;
+  font-family: var(--serif);
+  font-size: 14px;
+  color: var(--ink);
+  line-height: 1.5;
+  resize: vertical;
+  outline: none;
+}
+.journal-textarea:focus { border-color: var(--accent); }
+.journal-textarea::placeholder { color: var(--faint); font-style: italic; }
 .exercise-card {
   border: 1px solid var(--hairline);
   border-radius: 10px;
@@ -1296,6 +1321,11 @@ button { font-family: inherit; cursor: pointer; }
   }
 
   .exercise-grid {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  .journal-grid {
     grid-template-columns: 1fr;
     gap: 12px;
   }

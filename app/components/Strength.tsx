@@ -19,6 +19,16 @@ interface SetData {
 // strengthLogs shape: { "2026-10-05": { "mon": { "Incline dumbbell press": [{ weight: "20", reps: "8" }, ...] } } }
 type StrengthLogs = Record<string, Record<string, Record<string, SetData[]>>>;
 
+interface JournalEntry {
+  bottleneck: string;
+  action: string;
+}
+
+// trainingJournal shape: { "2026-10-31": { "mon": { bottleneck: "...", action: "..." } } }
+type JournalLogs = Record<string, Record<string, JournalEntry>>;
+
+const EMPTY_JOURNAL: JournalEntry = { bottleneck: "", action: "" };
+
 interface Day {
   id: string;
   label: string;
@@ -340,18 +350,55 @@ function ExerciseLogCard({
   );
 }
 
+function JournalCard({
+  entry,
+  onUpdate,
+}: {
+  entry: JournalEntry;
+  onUpdate: (field: "bottleneck" | "action", value: string) => void;
+}) {
+  return (
+    <div className="journal-grid">
+      <div className="card journal-card">
+        <div className="card-title">Current bottleneck</div>
+        <textarea
+          className="journal-textarea"
+          value={entry.bottleneck}
+          onChange={(e) => onUpdate("bottleneck", e.target.value)}
+          placeholder="What's holding this session back?"
+          rows={3}
+        />
+      </div>
+      <div className="card journal-card">
+        <div className="card-title">What I've done about it</div>
+        <textarea
+          className="journal-textarea"
+          value={entry.action}
+          onChange={(e) => onUpdate("action", e.target.value)}
+          placeholder="What did you try or change?"
+          rows={3}
+        />
+      </div>
+    </div>
+  );
+}
+
 function DayCard({
   day,
   dayLog,
   allLogs,
   today,
   onSetUpdate,
+  journalEntry,
+  onJournalUpdate,
 }: {
   day: Day;
   dayLog: Record<string, SetData[]>;
   allLogs: StrengthLogs;
   today: string;
   onSetUpdate: (exerciseName: string, setIdx: number, data: SetData) => void;
+  journalEntry: JournalEntry;
+  onJournalUpdate: (field: "bottleneck" | "action", value: string) => void;
 }) {
   const isActivity = day.type === "activity";
 
@@ -392,6 +439,9 @@ function DayCard({
         </div>
       )}
 
+      <div className="divider-label" style={{ margin: "24px 0 16px" }}>Session journal</div>
+      <JournalCard entry={journalEntry} onUpdate={onJournalUpdate} />
+
       {day.notes && (
         <div style={{
           padding: "12px 0",
@@ -419,13 +469,17 @@ export default function Strength() {
   const now = new Date();
   const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
   const [logs, setLogs] = useUserData<StrengthLogs>("strengthLogs", {});
+  const [journalLogs, setJournalLogs] = useUserData<JournalLogs>("trainingJournal", {});
 
   // Keep a ref that always has the latest logs so callbacks never read stale state
   const logsRef = useRef(logs);
   logsRef.current = logs;
+  const journalLogsRef = useRef(journalLogs);
+  journalLogsRef.current = journalLogs;
 
   const todayLogs = logs[today] || {};
   const dayLog = todayLogs[activeDay] || {};
+  const journalEntry = journalLogs[today]?.[activeDay] ?? EMPTY_JOURNAL;
 
   const handleSetUpdate = useCallback(
     (exerciseName: string, setIdx: number, data: SetData) => {
@@ -444,6 +498,19 @@ export default function Strength() {
       setLogs(newLogs);
     },
     [setLogs, today, activeDay]
+  );
+
+  const handleJournalUpdate = useCallback(
+    (field: "bottleneck" | "action", value: string) => {
+      const current = journalLogsRef.current;
+      const newLogs = { ...current };
+      if (!newLogs[today]) newLogs[today] = {};
+      const existing = newLogs[today][activeDay] ?? EMPTY_JOURNAL;
+      newLogs[today][activeDay] = { ...existing, [field]: value };
+      journalLogsRef.current = newLogs;
+      setJournalLogs(newLogs);
+    },
+    [setJournalLogs, today, activeDay]
   );
 
   const exportStrength = useCallback(() => {
@@ -526,7 +593,15 @@ export default function Strength() {
           ))}
         </div>
 
-        <DayCard day={currentDay} dayLog={dayLog} allLogs={logs} today={today} onSetUpdate={handleSetUpdate} />
+        <DayCard
+          day={currentDay}
+          dayLog={dayLog}
+          allLogs={logs}
+          today={today}
+          onSetUpdate={handleSetUpdate}
+          journalEntry={journalEntry}
+          onJournalUpdate={handleJournalUpdate}
+        />
 
         {/* Week overview */}
         <div className="divider-label">Week overview</div>
