@@ -9,7 +9,7 @@ const geistSans = Geist({
 });
 
 export const metadata: Metadata = {
-  title: "Helix · Ultimate Longevity Protocol",
+  title: "Holding Athlete · Ultimate Longevity Protocol",
   description: "Healthspan dashboard — sleep, VO₂ max, strength, weight, nutrition",
 };
 

@@ -109,10 +109,6 @@ const WEEK: Day[] = [
   },
 ];
 
-// Shared with the Journal tab so its day tabs/labels always match the
-// current training plan without duplicating it.
-export const WEEK_DAYS = WEEK.map(({ id, label, tag }) => ({ id, label, tag }));
-
 // Looks across every day id, not just the current one — Monday and Thursday
 // (and Tuesday/Friday) run the identical exercise list, so "last session"
 // should reflect whichever of the two happened most recently.

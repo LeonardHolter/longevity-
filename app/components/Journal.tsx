@@ -2,72 +2,63 @@
 
 import React, { useCallback, useRef, useState } from "react";
 import { useUserData } from "../lib/useUserData";
-import { WEEK_DAYS } from "./Strength";
 
 interface JournalEntry {
   bottleneck: string;
   action: string;
 }
 
-// trainingJournal shape: { "2026-10-31": { "mon": { bottleneck: "...", action: "..." } } }
-type JournalLogs = Record<string, Record<string, JournalEntry>>;
+// trainingJournal shape: { "2026-10-31": { bottleneck: "...", action: "..." } }
+type JournalLogs = Record<string, JournalEntry>;
 
 const EMPTY_JOURNAL: JournalEntry = { bottleneck: "", action: "" };
 
-function isoToday(): string {
-  const n = new Date();
-  return `${n.getFullYear()}-${String(n.getMonth() + 1).padStart(2, "0")}-${String(n.getDate()).padStart(2, "0")}`;
+function localDateStr(d: Date): string {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
 }
 
-function dayMeta(dayId: string) {
-  return WEEK_DAYS.find((d) => d.id === dayId);
+function todayKey() {
+  return localDateStr(new Date());
 }
 
-function getJournalHistory(logs: JournalLogs): { date: string; dayId: string; entry: JournalEntry }[] {
-  const history: { date: string; dayId: string; entry: JournalEntry }[] = [];
-  for (const date of Object.keys(logs)) {
-    for (const dayId of Object.keys(logs[date])) {
-      const entry = logs[date][dayId];
-      if (entry.bottleneck.trim() || entry.action.trim()) {
-        history.push({ date, dayId, entry });
-      }
-    }
-  }
-  return history.sort((a, b) => b.date.localeCompare(a.date));
+function hasContent(entry: JournalEntry | undefined): boolean {
+  return !!entry && (entry.bottleneck.trim() !== "" || entry.action.trim() !== "");
 }
 
 export default function Journal() {
-  const dayIds = WEEK_DAYS.map((d) => d.id);
-  const todayIdx = new Date().getDay();
-  // Map JS day (0=Sun) to our array (0=Mon)
-  const mappedIdx = todayIdx === 0 ? 6 : todayIdx - 1;
-  const [activeDay, setActiveDay] = useState(dayIds[mappedIdx] || "mon");
-
-  const today = isoToday();
   const [logs, setLogs, loaded] = useUserData<JournalLogs>("trainingJournal", {});
-
-  // Keep a ref that always has the latest logs so callbacks never read stale state
   const logsRef = useRef(logs);
   logsRef.current = logs;
 
-  const entry = logs[today]?.[activeDay] ?? EMPTY_JOURNAL;
+  const [selectedDate, setSelectedDate] = useState(todayKey());
+
+  const entry = logs[selectedDate] ?? EMPTY_JOURNAL;
 
   const handleUpdate = useCallback(
     (field: "bottleneck" | "action", value: string) => {
       const current = logsRef.current;
-      const newLogs = { ...current };
-      if (!newLogs[today]) newLogs[today] = {};
-      const existing = newLogs[today][activeDay] ?? EMPTY_JOURNAL;
-      newLogs[today][activeDay] = { ...existing, [field]: value };
+      const existing = current[selectedDate] ?? EMPTY_JOURNAL;
+      const newLogs = { ...current, [selectedDate]: { ...existing, [field]: value } };
       logsRef.current = newLogs;
       setLogs(newLogs);
     },
-    [setLogs, today, activeDay]
+    [setLogs, selectedDate]
   );
 
-  const history = getJournalHistory(logs).filter(
-    (h) => !(h.date === today && h.dayId === activeDay)
-  );
+  // Last 14 days for the day strip
+  const days: Date[] = [];
+  for (let i = 13; i >= 0; i--) {
+    const d = new Date();
+    d.setDate(d.getDate() - i);
+    days.push(d);
+  }
+
+  const history = Object.entries(logs)
+    .filter(([date, e]) => date !== selectedDate && hasContent(e))
+    .sort(([a], [b]) => b.localeCompare(a));
 
   if (!loaded) {
     return (
@@ -90,45 +81,80 @@ export default function Journal() {
       <div className="page-head">
         <div>
           <div className="page-eyebrow">
-            Training · reflection
+            Holding Athlete · reflection
           </div>
           <h1 className="page-title">
-            Session <em>journal</em>
+            Training <em>journal</em>
           </h1>
           <p className="page-sub">
-            Every session, name the one thing holding it back and what you've
-            done about it. Pick a day below to log today's entry.
+            Each day, name the one thing holding your training back and what
+            you've done about it. Not tied to any specific workout.
           </p>
         </div>
       </div>
 
       <div className="page-body">
-        {/* Day selector */}
+        {/* Day strip */}
         <div style={{
-          display: "flex",
-          gap: 4,
-          marginBottom: 24,
-          overflowX: "auto",
+          display: "flex", gap: 4, marginBottom: 24, overflowX: "auto",
         }}>
-          {WEEK_DAYS.map((d) => (
-            <button
-              key={d.id}
-              className={`session-switch-btn${d.id === activeDay ? " active" : ""}`}
-              onClick={() => setActiveDay(d.id)}
-              style={{ padding: "8px 14px", fontSize: 11, whiteSpace: "nowrap" }}
-            >
-              <span style={{ fontWeight: 600 }}>{d.label.slice(0, 3)}</span>
-              <span style={{ marginLeft: 6, opacity: 0.6, fontSize: 10 }}>{d.tag}</span>
-            </button>
-          ))}
+          {days.map((d) => {
+            const key = localDateStr(d);
+            const isSelected = key === selectedDate;
+            const filled = hasContent(logs[key]);
+
+            return (
+              <button
+                key={key}
+                onClick={() => setSelectedDate(key)}
+                style={{
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "center",
+                  gap: 4,
+                  padding: "10px 12px",
+                  borderRadius: 10,
+                  border: isSelected ? "1.5px solid var(--accent)" : "1.5px solid transparent",
+                  background: isSelected ? "var(--surface-2)" : "transparent",
+                  cursor: "pointer",
+                  minWidth: 52,
+                  transition: "all 0.15s",
+                }}
+              >
+                <div style={{
+                  fontFamily: "var(--mono)",
+                  fontSize: 9,
+                  letterSpacing: "0.1em",
+                  color: "var(--muted)",
+                }}>
+                  {d.toLocaleDateString("en-US", { weekday: "short" }).toUpperCase()}
+                </div>
+                <div style={{
+                  fontFamily: "var(--serif)",
+                  fontSize: 18,
+                  color: "var(--ink)",
+                }}>
+                  {d.getDate()}
+                </div>
+                <div style={{
+                  width: 8,
+                  height: 8,
+                  borderRadius: "50%",
+                  background: filled ? "var(--accent)" : "transparent",
+                  border: !filled ? "1px solid var(--hairline)" : "none",
+                }} />
+              </button>
+            );
+          })}
         </div>
 
         <div className="session-shell">
           <div className="session-head">
             <div>
-              <div className="session-eyebrow">{dayMeta(activeDay)?.label}</div>
-              <div className="session-title">
-                <span className="session-day-tag">{dayMeta(activeDay)?.tag}</span>
+              <div className="session-eyebrow">
+                {new Date(selectedDate + "T12:00:00").toLocaleDateString("en-US", {
+                  weekday: "long", month: "long", day: "numeric",
+                })}
               </div>
             </div>
           </div>
@@ -140,7 +166,7 @@ export default function Journal() {
                 className="journal-textarea"
                 value={entry.bottleneck}
                 onChange={(e) => handleUpdate("bottleneck", e.target.value)}
-                placeholder="What's holding this session back?"
+                placeholder="What's holding your training back right now?"
                 rows={4}
               />
             </div>
@@ -162,43 +188,35 @@ export default function Journal() {
           <>
             <div className="divider-label">Past entries</div>
             <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-              {history.map((h) => (
-                <div key={`${h.date}-${h.dayId}`} className="card" style={{ padding: 20 }}>
-                  <div style={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    alignItems: "baseline",
-                    marginBottom: 12,
-                  }}>
-                    <div style={{ fontFamily: "var(--serif)", fontStyle: "italic", fontSize: 15 }}>
-                      {new Date(h.date + "T12:00:00").toLocaleDateString("en-US", {
-                        weekday: "long",
-                        month: "short",
-                        day: "numeric",
-                      })}
-                    </div>
-                    <div style={{
-                      fontFamily: "var(--mono)", fontSize: 10,
-                      letterSpacing: "0.1em", color: "var(--accent)",
-                    }}>
-                      {dayMeta(h.dayId)?.tag}
-                    </div>
+              {history.map(([date, e]) => (
+                <div
+                  key={date}
+                  className="card"
+                  style={{ padding: 20, cursor: "pointer" }}
+                  onClick={() => setSelectedDate(date)}
+                >
+                  <div style={{ fontFamily: "var(--serif)", fontStyle: "italic", fontSize: 15, marginBottom: 12 }}>
+                    {new Date(date + "T12:00:00").toLocaleDateString("en-US", {
+                      weekday: "long",
+                      month: "short",
+                      day: "numeric",
+                    })}
                   </div>
                   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
                     <div>
                       <div style={{ fontFamily: "var(--mono)", fontSize: 9, letterSpacing: "0.12em", color: "var(--faint)", marginBottom: 4 }}>
                         BOTTLENECK
                       </div>
-                      <div style={{ fontFamily: "var(--serif)", fontSize: 14, color: h.entry.bottleneck ? "var(--ink)" : "var(--faint)", whiteSpace: "pre-wrap" }}>
-                        {h.entry.bottleneck || "—"}
+                      <div style={{ fontFamily: "var(--serif)", fontSize: 14, color: e.bottleneck ? "var(--ink)" : "var(--faint)", whiteSpace: "pre-wrap" }}>
+                        {e.bottleneck || "—"}
                       </div>
                     </div>
                     <div>
                       <div style={{ fontFamily: "var(--mono)", fontSize: 9, letterSpacing: "0.12em", color: "var(--faint)", marginBottom: 4 }}>
                         WHAT I DID
                       </div>
-                      <div style={{ fontFamily: "var(--serif)", fontSize: 14, color: h.entry.action ? "var(--ink)" : "var(--faint)", whiteSpace: "pre-wrap" }}>
-                        {h.entry.action || "—"}
+                      <div style={{ fontFamily: "var(--serif)", fontSize: 14, color: e.action ? "var(--ink)" : "var(--faint)", whiteSpace: "pre-wrap" }}>
+                        {e.action || "—"}
                       </div>
                     </div>
                   </div>
@@ -215,8 +233,8 @@ export default function Journal() {
             </div>
             <p style={{ color: "var(--muted)", maxWidth: 400, margin: "0 auto", lineHeight: 1.6 }}>
               Fill out today's boxes above. Once you log entries across a few
-              sessions, they'll show up here so you can see what's been
-              sticking around.
+              days, they'll show up here so you can see what's been sticking
+              around.
             </p>
           </div>
         )}

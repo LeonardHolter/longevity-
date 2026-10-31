@@ -12,7 +12,7 @@ export default function Login({ whoop }: LoginProps) {
   return (
     <div className="login-page">
       <div className="login-art">
-        <div className="login-art-brand">Helix</div>
+        <div className="login-art-brand">Holding Athlete</div>
 
         <svg
           className="login-art-helix"
@@ -51,7 +51,7 @@ export default function Login({ whoop }: LoginProps) {
             Read it. Edit it. Extend it.
           </div>
           <div className="login-art-attribution">
-            Helix &middot; Ultimate Longevity Protocol
+            Holding Athlete &middot; Ultimate Longevity Protocol
           </div>
         </div>
       </div>

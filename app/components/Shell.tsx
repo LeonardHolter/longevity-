@@ -37,7 +37,7 @@ export default function Shell({ route, setRoute, children }: ShellProps) {
     <div className="shell">
       <aside className="sidebar">
         <div className="brand">
-          <div className="brand-mark">Helix</div>
+          <div className="brand-mark">Holding Athlete</div>
           <div className="brand-tag">v0.4</div>
         </div>
 
