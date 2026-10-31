@@ -38,7 +38,7 @@ const PUSH_EXERCISES: Exercise[] = [
 
 const PULL_EXERCISES: Exercise[] = [
   { name: "Lat pulldown", scheme: "4 × 6–8", rest: "2 min" },
-  { name: "Cable rows", scheme: "3 × 6–8", rest: "2 min" },
+  { name: "Tricep extensions", scheme: "3 × 6–8", rest: "2 min" },
   { name: "Bicep curls", scheme: "3 × 6–8", rest: "90 sec" },
   { name: "Hammer curls", scheme: "3 × 6–8", rest: "60 sec" },
 ];
