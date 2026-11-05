@@ -30,24 +30,27 @@ interface Day {
 }
 
 const PUSH_EXERCISES: Exercise[] = [
-  { name: "Bench press", scheme: "4 × 6–8", rest: "2.5 min" },
-  { name: "Incline press", scheme: "3 × 6–8", rest: "2 min" },
-  { name: "Crunch machine", scheme: "3 × 6–8", rest: "60 sec" },
-  { name: "Hanging leg raises", scheme: "3 × 6–8", rest: "60 sec" },
+  { name: "Bench press", scheme: "4 × 6–8", rest: "3 min" },
+  { name: "Incline press", scheme: "2 × 6–8", rest: "2 min" },
+  { name: "Tricep push down", scheme: "2 × 6–8", rest: "2 min" },
+  { name: "Skull crushers", scheme: "2 × 6–8", rest: "2 min" },
+  { name: "Overhead press", scheme: "3 × 6–8", rest: "2 min" },
+  { name: "Hanging leg raises", scheme: "3 × 6–8", rest: "" },
 ];
 
 const PULL_EXERCISES: Exercise[] = [
-  { name: "Lat pulldown", scheme: "4 × 6–8", rest: "2 min" },
-  { name: "Tricep extensions", scheme: "3 × 6–8", rest: "2 min" },
-  { name: "Bicep curls", scheme: "3 × 6–8", rest: "90 sec" },
-  { name: "Hammer curls", scheme: "3 × 6–8", rest: "60 sec" },
+  { name: "Pull-ups (warm-up)", scheme: "2 × max", rest: "" },
+  { name: "Bicep curls", scheme: "2 × 6–8", rest: "" },
+  { name: "Hammer curls", scheme: "2 × 6–8", rest: "" },
+  { name: "Lat pulldown", scheme: "3 × 6–8", rest: "" },
+  { name: "Rows", scheme: "3 × 6–8", rest: "" },
+  { name: "Crunch machine", scheme: "2 × 6–8", rest: "" },
 ];
 
 const LEG_EXERCISES: Exercise[] = [
-  { name: "Squat", scheme: "4 × 6–8", rest: "2.5 min" },
-  { name: "Romanian deadlift", scheme: "3 × 6–8", rest: "2 min" },
-  { name: "Leg press", scheme: "3 × 6–8", rest: "2 min" },
-  { name: "Leg curl", scheme: "3 × 6–8", rest: "90 sec" },
+  { name: "Squat", scheme: "5 × 6–8", rest: "" },
+  { name: "Deadlift", scheme: "3 × 6–8", rest: "" },
+  { name: "Calf raises", scheme: "3 × 6–8", rest: "" },
 ];
 
 const WEEK: Day[] = [
